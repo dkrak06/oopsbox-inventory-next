@@ -1,0 +1,11 @@
+# Next.js & Node.js gitignore
+# node_modules 및 .next 빌드 결과물 제외 설정
+
+node_modules
+.next
+out
+build
+dist
+*.log
+.env*.local
+.DS_Store
