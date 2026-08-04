@@ -40,6 +40,11 @@
   box-sizing: border-box;
 }
 
+html {
+  overflow-y: overlay; /* 스크롤바를 화면 레이어 위에 띄워 레이아웃 밀림을 완전 방지 */
+  scrollbar-gutter: stable; /* 표준 브라우저에서 스크롤 공간을 미리 확보해 크기 변경을 없앰 */
+}
+
 body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, 'Outfit', 'Noto Sans KR', sans-serif;
   background-color: var(--bg-light);
@@ -658,3 +663,437 @@ button, input, select, textarea {
 .align-right {
   text-align: right;
 }
+
+/* ==========================================================================
+   종합 대시보드 (Dashboard) 스타일 시스템 정의
+   ========================================================================== */
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 1. 상단 4열 요약 카드 그리드 */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-grid .card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--box-shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dashboard-grid .card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--box-shadow-hover);
+}
+
+.card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.card-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.card-value .unit {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.card-desc {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* 카드 배경용 반투명 아이콘 스타일 */
+.card-bg-icon {
+  font-size: 48px;
+  color: rgba(148, 163, 184, 0.08); /* 극히 불투명한 회색 */
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* 경고(안전재고 부족) 카드 강조 데코레이션 */
+.card.warning {
+  border-left: 4px solid var(--warning);
+}
+
+.text-danger-icon {
+  color: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* 2. 최근 입출고 변동 내역 테이블 카드 */
+.dashboard-table-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--box-shadow);
+}
+
+.table-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.table-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.btn-more {
+  background: #f1f5f9;
+  border: 1px solid var(--border-dark);
+  color: #475569;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-more:hover {
+  background: #e2e8f0;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.dashboard-table th {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  background-color: #f8fafc;
+}
+
+.dashboard-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.dashboard-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.dashboard-table .sku-cell {
+  font-family: 'Outfit', sans-serif;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.dashboard-table .name-cell {
+  font-weight: 600;
+}
+
+.dashboard-table .no-data {
+  text-align: center;
+  color: #94a3b8;
+  padding: 32px 0;
+  font-size: 14px;
+}
+
+/* 입출고 구분 배지 스타일 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-in {
+  background-color: #eff6ff;
+  color: #3b82f6;
+}
+
+.badge-out {
+  background-color: #fef2f2;
+  color: #ef4444;
+}
+
+.badge-adjust {
+  background-color: #fffbeb;
+  color: #d97706;
+}
+
+.badge-move {
+  background-color: #f0fdf4;
+  color: #16a34a;
+}
+
+.qty-cell {
+  font-weight: 700;
+}
+
+.text-success {
+  color: #2563eb !important;
+}
+
+.text-danger {
+  color: #dc2626 !important;
+}
+
+.date-cell {
+  color: #64748b;
+}
+
+/* 3. 하단 2열 레이아웃 그리드 */
+.dashboard-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bottom-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--box-shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.bottom-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+}
+
+/* 빠른 바로가기 버튼 그룹 */
+.quick-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.btn-quick {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  border: 1px solid transparent;
+}
+
+.btn-quick i {
+  font-size: 20px;
+}
+
+.btn-quick-in {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.btn-quick-in:hover {
+  background-color: #2563eb;
+}
+
+.btn-quick-out {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.btn-quick-out:hover {
+  background-color: #dc2626;
+}
+
+.btn-quick-add {
+  background-color: #ffffff;
+  border-color: var(--border-dark);
+  color: #1e293b;
+}
+
+.btn-quick-add:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+/* 재고 부족 알림 리스트 영역 */
+.low-stock-list-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+}
+
+.low-stock-scroll-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.low-stock-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background-color: #fff5f5;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+}
+
+.low-stock-item-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.low-stock-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.low-stock-sku {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.low-stock-qty {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   다중 입출고 등록 폼 (StockMovementForm) 상세 스타일 추가
+   ========================================================================= */
+
+.stock-in-form-container {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.search-item-hover:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* 스크롤바 디자인 최적화 */
+.low-stock-scroll-list::-webkit-scrollbar,
+.search-item-hover::-webkit-scrollbar {
+  width: 6px;
+}
+
+.low-stock-scroll-list::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Chrome, Safari, Edge, Opera 에서 input number 화살표 제거 */
+.no-spin::-webkit-outer-spin-button,
+.no-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+/* Firefox 에서 input number 화살표 제거 */
+.no-spin {
+  -moz-appearance: textfield;
+}
+
+/* 시간 픽커 컬럼 스크롤 스냅 및 스크롤바 숨김 처리 */
+.time-snap-container {
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none; /* Firefox 스크롤바 숨김 */
+  -ms-overflow-style: none; /* IE/Edge 스크롤바 숨김 */
+}
+.time-snap-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Webkit 스크롤바 숨김 */
+}
+.time-snap-item {
+  scroll-snap-align: start;
+}
+
+
+
+

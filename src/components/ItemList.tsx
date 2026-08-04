@@ -31,10 +31,7 @@ export default function ItemList({ onAddNew }: ItemListProps) {
   const loadData = () => {
     const loaded = getStoredItems();
     setItems(loaded);
-    // 기본 선택 설정 (첫 번째 제품)
-    if (loaded.length > 0 && !selectedItemId) {
-      setSelectedItemId(loaded[0].id);
-    }
+    // [사용자 요청 반영]: 첫 화면 진입 시 아무런 제품도 선택되어 있지 않도록 자동 첫 번째 제품 선택 로직을 제거합니다.
   };
 
   useEffect(() => {
@@ -383,8 +380,9 @@ export default function ItemList({ onAddNew }: ItemListProps) {
                       <span style={{ fontWeight: 700, fontSize: '14px', color: '#3b82f6' }}>
                         {item.total_quantity} 개
                       </span>
+                      {/* 오해의 소지가 있는 '잔여' 텍스트를 실시간 거래 이력 건수를 뜻하는 '거래'로 변경 및 초기값 0 대응 */}
                       <span style={{ fontSize: '12px', color: '#3b82f6', marginLeft: '4px' }}>
-                        (잔여: {item.history_count || 3} 회)
+                        (거래: {item.history_count || 0} 회)
                       </span>
                     </div>
                   </div>
@@ -521,8 +519,9 @@ export default function ItemList({ onAddNew }: ItemListProps) {
                     <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>총 재고량</div>
                     <div style={{ fontWeight: 700, color: '#3b82f6' }}>
                       {selectedItem.total_quantity} 개
+                      {/* 제품 상세 뷰에서도 거래 횟수로 표시를 통합 조정 */}
                       <span style={{ fontSize: '12px', marginLeft: '4px' }}>
-                        (잔여: {selectedItem.history_count || 3} 회)
+                        (거래: {selectedItem.history_count || 0} 회)
                       </span>
                     </div>
                   </div>

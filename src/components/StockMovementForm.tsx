@@ -1,13 +1,18 @@
 /**
  * [StockMovementForm 컴포넌트]
- * 역할: 입고 등록, 출고 등록, 재고 조정, 재고 이동 수량 처리 폼입니다.
- * 흐름: 등록된 제품을 선택하고 변동 수량을 입력받아 recordStockMovement()로 실시간 재고를 반영합니다.
+ * 역할: 입고, 출고, 재고 조정, 재고 이동의 4가지 기능을 테마 컬러 및 구조별로 미세 조정하여 100% 동일하게 렌더링합니다.
+ * 흐름: 각 타입별 테마(파랑/빨강/청록/주황) 설정 -> 커스텀 달력(정사각형 날짜 하이라이트 및 시간 픽커) -> 테이블 멀티 등록 -> 제출 시 일괄 데이터 반영.
  */
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getStoredItems, recordStockMovement, Item } from '@/lib/storage';
+
+interface SelectedItemRow {
+  item: Item;
+  qty: number;
+}
 
 interface StockMovementFormProps {
   type: 'IN' | 'OUT' | 'ADJUST' | 'MOVE';
@@ -15,113 +20,1318 @@ interface StockMovementFormProps {
 }
 
 export default function StockMovementForm({ type, onSuccess }: StockMovementFormProps) {
-  const [items, setItems] = useState<Item[]>([]);
-  const [selectedItemId, setSelectedItemId] = useState<string>('');
-  const [quantity, setQuantity] = useState<number>(1);
-  const [locationName, setLocationName] = useState<string>('기본 위치');
-  const [notes, setNotes] = useState<string>('');
+  // 전체 마스터 제품 목록 상태
+  const [dbItems, setDbItems] = useState<Item[]>([]);
+  
+  // 위치 메타데이터 상태 (출발지 및 목적지 창고)
+  const [warehouse, setWarehouse] = useState<string>('기본창고');
+  const [toWarehouse, setToWarehouse] = useState<string>('A창고'); // 이동(MOVE) 기능 시 목적지 창고
+  const [partner, setPartner] = useState<string>(''); // 거래처
+  
+  // 날짜 관련 상태 (기본은 '현재', 사용자 지정 시 캘린더에 연동)
+  const [useCurrentDate, setUseCurrentDate] = useState<boolean>(true);
+  const [customDateString, setCustomDateString] = useState<string>('현재');
 
-  const typeTitles = {
-    IN: '입고 등록',
-    OUT: '출고 등록',
-    ADJUST: '재고 조정',
-    MOVE: '재고 이동',
+  // 커스텀 달력 상태 관리
+  const [showCalendar, setShowCalendar] = useState<boolean>(false);
+  const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth()); // 0 ~ 11
+  
+  // 선택된 상세 날짜 상태
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
+
+  // 선택된 상세 시간 상태 (기본 현재 시각으로 자동 셋팅)
+  const [timeAmPm, setTimeAmPm] = useState<'오전' | '오후'>('오전');
+  const [timeHour, setTimeHour] = useState<number>(9);
+  const [timeMinute, setTimeMinute] = useState<number>(0);
+
+  // 시간 선택 스크롤 드롭다운 표시 여부 (통합 3열 시계 버튼 팝업)
+  const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
+
+  // 오전/오후 커스텀 드롭다운 표시 여부
+  const [showAmPmDropdown, setShowAmPmDropdown] = useState<boolean>(false);
+
+  // 시(Hour) 및 분(Minute) 개별 변경 커스텀 드롭다운 표시 여부
+  const [showHourDropdown, setShowHourDropdown] = useState<boolean>(false);
+  const [showMinuteDropdown, setShowMinuteDropdown] = useState<boolean>(false);
+  
+  const [notes, setNotes] = useState<string>(''); // 메모
+
+  // 테이블에 추가된 예정 제품 리스트
+  const [selectedList, setSelectedList] = useState<SelectedItemRow[]>([]);
+  
+  // 제품 검색창 제어 상태
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const calendarContainerRef = useRef<HTMLDivElement>(null); // 달력 모달 외부클릭 감지용
+  const timePickerRef = useRef<HTMLDivElement>(null); // 시간 선택기 외부클릭 감지용
+  const ampmDropdownRef = useRef<HTMLDivElement>(null); // 오전/오후 커스텀 드롭다운 외부클릭 감지용
+  const timeBoxRef = useRef<HTMLDivElement>(null); // 시간 조절 인풋 박스 래퍼 Ref (Native { passive: false } 휠 스크롤 차단용)
+  
+  // 개별 드롭다운 외부클릭 감지용 레퍼런스
+  const hourDropdownRef = useRef<HTMLDivElement>(null);
+  const minuteDropdownRef = useRef<HTMLDivElement>(null);
+
+  // 각 입출고 성격에 부합하는 테마 설정 (컬러, 타이틀, 레이블 명칭)
+  const typeThemes = {
+    IN: { title: '입고', color: '#3b82f6', label: '입고 수량' },
+    OUT: { title: '출고', color: '#ef4444', label: '출고 수량' },
+    ADJUST: { title: '조정', color: '#0d9488', label: '조정 수량' },
+    MOVE: { title: '이동', color: '#f97316', label: '이동 수량' },
   };
 
+  const theme = typeThemes[type];
+
+  // 컴포넌트 마운트 시 저장소에서 품목 데이터 로드
   useEffect(() => {
-    const loadedItems = getStoredItems();
-    setItems(loadedItems);
-    if (loadedItems.length > 0) {
-      setSelectedItemId(loadedItems[0].id);
-    }
+    setDbItems(getStoredItems());
   }, []);
 
+  // 외부 영역 클릭 시 검색 드롭다운, 달력, 시간 픽커, 오전오후 드롭다운, 개별 시/분 드롭다운 모달을 자동으로 닫는 통합 감지 이펙트
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
+        setIsDropdownOpen(false);
+      }
+
+      if (showTimePicker && timePickerRef.current && !timePickerRef.current.contains(target)) {
+        if (!target.closest('.clock-btn')) {
+          setShowTimePicker(false);
+        }
+      }
+
+      if (showAmPmDropdown && ampmDropdownRef.current && !ampmDropdownRef.current.contains(target)) {
+        if (!target.closest('.ampm-trigger')) {
+          setShowAmPmDropdown(false);
+        }
+      }
+
+      // 개별 시 드롭다운 외부 클릭 감지
+      if (showHourDropdown && hourDropdownRef.current && !hourDropdownRef.current.contains(target)) {
+        if (!target.closest('.hour-input-trigger')) {
+          setShowHourDropdown(false);
+        }
+      }
+
+      // 개별 분 드롭다운 외부 클릭 감지
+      if (showMinuteDropdown && minuteDropdownRef.current && !minuteDropdownRef.current.contains(target)) {
+        if (!target.closest('.minute-input-trigger')) {
+          setShowMinuteDropdown(false);
+        }
+      }
+
+      if (showCalendar && calendarContainerRef.current && !calendarContainerRef.current.contains(target)) {
+        if (
+          timePickerRef.current?.contains(target) || 
+          ampmDropdownRef.current?.contains(target) ||
+          hourDropdownRef.current?.contains(target) ||
+          minuteDropdownRef.current?.contains(target) ||
+          target.closest('.clock-btn') ||
+          target.closest('.ampm-trigger') ||
+          target.closest('.hour-input-trigger') ||
+          target.closest('.minute-input-trigger')
+        ) {
+          return;
+        }
+        setShowCalendar(false);
+        setShowTimePicker(false);
+        setShowAmPmDropdown(false);
+        setShowHourDropdown(false);
+        setShowMinuteDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showTimePicker, showAmPmDropdown, showHourDropdown, showMinuteDropdown, showCalendar]);
+
+  // 달력 팝업이 새로 열릴 때 자동으로 현재 시각으로 초기화하는 이펙트
+  useEffect(() => {
+    if (showCalendar) {
+      syncTimeToCurrent();
+    }
+  }, [showCalendar]);
+
+  // 날짜/시간 상태가 변경될 때마다 화면에 표출할 포맷팅된 날짜 문자열 계산
+  useEffect(() => {
+    if (useCurrentDate) {
+      setCustomDateString('현재');
+    } else {
+      const monthStr = String(selectedMonth + 1).padStart(2, '0');
+      const dayStr = String(selectedDay).padStart(2, '0');
+      
+      let showHour = timeHour;
+      if (timeAmPm === '오후' && timeHour < 12) showHour += 12;
+      if (timeAmPm === '오전' && timeHour === 12) showHour = 0;
+      const hourStr = String(showHour).padStart(2, '0');
+      const minuteStr = String(timeMinute).padStart(2, '0');
+
+      setCustomDateString(`${selectedYear}-${monthStr}-${dayStr} ${hourStr}:${minuteStr}`);
+    }
+  }, [useCurrentDate, selectedYear, selectedMonth, selectedDay, timeAmPm, timeHour, timeMinute]);
+
+  // 현재 시간으로 동기화 처리 함수
+  const syncTimeToCurrent = () => {
+    const today = new Date();
+    setSelectedYear(today.getFullYear());
+    setSelectedMonth(today.getMonth());
+    setSelectedDay(today.getDate());
+    setCurrentYear(today.getFullYear());
+    setCurrentMonth(today.getMonth());
+
+    const currentHour24 = today.getHours();
+    setTimeAmPm(currentHour24 >= 12 ? '오후' : '오전');
+    setTimeHour(currentHour24 % 12 === 0 ? 12 : currentHour24 % 12);
+    setTimeMinute(today.getMinutes());
+  };
+
+  // 달력 모달(showCalendar)이 열릴 때 기존 스크롤바 강제 억제 제거 (원래 상태 복원)
+  useEffect(() => {
+    // 스크롤바 지움 현상 제거 완료
+  }, [showCalendar]);
+
+  // 테이블에 중복 추가되지 않은 검색 키워드 매칭 제품 필터링
+  const availableItems = dbItems.filter(item => {
+    const isAlreadySelected = selectedList.some(row => row.item.id === item.id);
+    const matchesKeyword = 
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.barcode.includes(searchQuery);
+    return !isAlreadySelected && matchesKeyword;
+  });
+
+  // 검색창 품목 선택 핸들러
+  const handleAddItem = (item: Item) => {
+    setSelectedList(prev => [...prev, { item, qty: 1 }]);
+    setSearchQuery('');
+    setIsDropdownOpen(false);
+  };
+
+  // 테이블 내 개별 품목 수량 변경 핸들러
+  const handleQtyChange = (itemId: string, newQty: number) => {
+    setSelectedList(prev => 
+      prev.map(row => (row.item.id === itemId ? { ...row, qty: Math.max(1, newQty) } : row))
+    );
+  };
+
+  // 테이블 내 개별 품목 제거 핸들러
+  const handleRemoveItem = (itemId: string) => {
+    setSelectedList(prev => prev.filter(row => row.item.id !== itemId));
+  };
+
+  // 초기화 핸들러
+  const handleReset = () => {
+    if (confirm('입력한 내용을 모두 초기화하시겠습니까?')) {
+      setSelectedList([]);
+      setWarehouse('기본창고');
+      setToWarehouse('A창고');
+      setPartner('');
+      setUseCurrentDate(true);
+      setNotes('');
+    }
+  };
+
+  // 최종 제출 처리 핸들러
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedItemId) {
-      alert('제품을 선택해주세요.');
+    if (selectedList.length === 0) {
+      alert(`${theme.title}할 제품을 최소 1개 이상 추가해 주세요.`);
       return;
     }
 
-    recordStockMovement(selectedItemId, type, quantity, locationName);
-    const selectedItem = items.find((i) => i.id === selectedItemId);
-    alert(`'${selectedItem?.name}' 제품의 ${typeTitles[type]}이 성공적으로 반영되었습니다!`);
+    // 각 제품별 재고 이동 반영 실행
+    selectedList.forEach(row => {
+      if (type === 'MOVE') {
+        recordStockMovement(row.item.id, 'OUT', row.qty, warehouse);
+        recordStockMovement(row.item.id, 'IN', row.qty, toWarehouse);
+      } else {
+        recordStockMovement(row.item.id, type, row.qty, warehouse);
+      }
+    });
+
+    alert(`총 ${selectedList.length}개 품목의 ${theme.title} 처리가 완료되었습니다!`);
     onSuccess();
   };
 
+  const totalQtySum = selectedList.reduce((acc, cur) => acc + cur.qty, 0);
+
+  // ==========================================
+  // 커스텀 달력 격자 연산 로직 영역
+  // ==========================================
+  const getDaysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+  const getFirstDayOfMonth = (y: number, m: number) => new Date(y, m, 1).getDay();
+
+  const daysInCurrentMonth = getDaysInMonth(currentYear, currentMonth);
+  const firstDayOfCurrentMonth = getFirstDayOfMonth(currentYear, currentMonth);
+  
+  const prevMonthIndex = currentMonth === 0 ? 11 : currentMonth - 1;
+  const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+  const daysInPrevMonth = getDaysInMonth(prevYear, prevMonthIndex);
+
+  const calendarCells = [];
+  
+  for (let i = firstDayOfCurrentMonth - 1; i >= 0; i--) {
+    calendarCells.push({
+      day: daysInPrevMonth - i,
+      month: prevMonthIndex,
+      year: prevYear,
+      isCurrentMonth: false,
+    });
+  }
+
+  for (let i = 1; i <= daysInCurrentMonth; i++) {
+    calendarCells.push({
+      day: i,
+      month: currentMonth,
+      year: currentYear,
+      isCurrentMonth: true,
+    });
+  }
+
+  const remainingCells = 42 - calendarCells.length;
+  const nextMonthIndex = currentMonth === 11 ? 0 : currentMonth + 1;
+  const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+  for (let i = 1; i <= remainingCells; i++) {
+    calendarCells.push({
+      day: i,
+      month: nextMonthIndex,
+      year: nextYear,
+      isCurrentMonth: false,
+    });
+  }
+
+  const handlePrevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(prev => prev - 1);
+    } else {
+      setCurrentMonth(prev => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(prev => prev + 1);
+    } else {
+      setCurrentMonth(prev => prev + 1);
+    }
+  };
+
+  const handleSelectDay = (cell: { day: number; month: number; year: number }) => {
+    setSelectedYear(cell.year);
+    setSelectedMonth(cell.month);
+    setSelectedDay(cell.day);
+    setUseCurrentDate(false);
+  };
+
+  const handleSelectToday = () => {
+    syncTimeToCurrent();
+    setUseCurrentDate(false);
+  };
+
+  // 시계 아이콘 클릭 시 시간 스크롤 픽커 토글 핸들러
+  const handleClockIconClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowTimePicker(prev => !prev);
+    setShowHourDropdown(false);
+    setShowMinuteDropdown(false);
+  };
+
+  // ==========================================
+  // 마우스 휠 회전식 9칸 바둑판 격자 동기화 연산
+  // ==========================================
+  
+  // 시(Hour) 컬럼 휠 스크롤 감지 및 루프 갱신
+  const handleHourWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setUseCurrentDate(false);
+    if (e.deltaY > 0) {
+      setTimeHour(prev => (prev === 12 ? 1 : prev + 1));
+    } else {
+      setTimeHour(prev => (prev === 1 ? 12 : prev - 1));
+    }
+  };
+
+  // 분(Minute) 컬럼 휠 스크롤 감지 및 루프 갱신
+  const handleMinuteWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setUseCurrentDate(false);
+    if (e.deltaY > 0) {
+      setTimeMinute(prev => (prev === 59 ? 0 : prev + 1));
+    } else {
+      setTimeMinute(prev => (prev === 0 ? 59 : prev - 1));
+    }
+  };
+
+  // 시(Hour)의 1행, 2행, 3행 값 계산
+  const h1 = timeHour;
+  const h2 = timeHour === 12 ? 1 : timeHour + 1;
+  const h3 = h2 === 12 ? 1 : h2 + 1;
+
+  // 분(Minute)의 1행, 2행, 3행 값 계산
+  const m1 = timeMinute;
+  const m2 = timeMinute === 59 ? 0 : timeMinute + 1;
+  const m3 = m2 === 59 ? 0 : m2 + 1;
+
   return (
-    <div className="boxhero-style-form" style={{ maxWidth: '800px' }}>
-      <header className="form-header">
-        <span className="sub-title">재고 관리</span>
-        <h1 className="main-title" style={{ marginTop: '4px' }}>
-          {typeTitles[type]}
-        </h1>
-      </header>
-
-      {items.length === 0 ? (
-        <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-          등록된 제품이 없습니다. 먼저 제품을 새로 등록해주세요.
+    <div className="stock-in-form-container" style={{ maxWidth: '900px', margin: '0 auto', fontFamily: 'Pretendard, sans-serif' }}>
+      {/* 1. 상단 타이틀 영역 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: `2px solid ${theme.color}`, paddingBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#1e293b' }}>
+            <span style={{ color: theme.color }}>{theme.title}</span>
+          </h1>
+          <i className="fa-regular fa-circle-question" style={{ color: theme.color, fontSize: '18px', cursor: 'pointer' }}></i>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit}>
-          <div className="form-group" style={{ marginBottom: '16px' }}>
-            <label className="form-label">제품 선택<span className="required">*</span></label>
-            <select
-              className="form-input"
-              value={selectedItemId}
-              onChange={(e) => setSelectedItemId(e.target.value)}
-              required
+        <button type="button" onClick={handleReset} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}>초기화</button>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        {/* 2. 메타데이터 입력 카드 */}
+        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          
+          {/* 위치 선택 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>위치 <span style={{ color: '#ff4d4f' }}>*</span></span>
+            {type === 'MOVE' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', maxWidth: '380px', width: '100%' }}>
+                <select className="form-input" value={warehouse} onChange={(e) => setWarehouse(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', flex: 1, minWidth: 0 }}>
+                  <option value="기본창고">기본창고</option>
+                  <option value="A창고">A창고</option>
+                  <option value="B창고">B창고</option>
+                </select>
+                <i className="fa-solid fa-arrow-right" style={{ color: theme.color, fontSize: '14px', flexShrink: 0 }}></i>
+                <select className="form-input" value={toWarehouse} onChange={(e) => setToWarehouse(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', flex: 1, minWidth: 0 }}>
+                  <option value="A창고">A창고</option>
+                  <option value="B창고">B창고</option>
+                  <option value="기본창고">기본창고</option>
+                </select>
+              </div>
+            ) : (
+              <select className="form-input" value={warehouse} onChange={(e) => setWarehouse(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', width: '100%', maxWidth: '380px' }}>
+                <option value="기본창고">기본창고</option>
+                <option value="A창고">A창고</option>
+                <option value="B창고">B창고</option>
+              </select>
+            )}
+          </div>
+
+          {/* 거래처 선택 */}
+          {(type === 'IN' || type === 'OUT') && (
+            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>거래처</span>
+              <select className="form-input" value={partner} onChange={(e) => setPartner(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', width: '100%', maxWidth: '380px' }}>
+                <option value="">선택하세요</option>
+                <option value="(주)영웅유통">(주)영웅유통</option>
+                <option value="(주)웁스상사">(주)웁스상사</option>
+              </select>
+            </div>
+          )}
+
+          {/* 날짜 선택 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>날짜</span>
+            <div style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
+              
+              <div 
+                onClick={() => setShowCalendar(prev => !prev)}
+                style={{ 
+                  width: '100%', 
+                  padding: '8px 12px', 
+                  borderRadius: '6px', 
+                  border: '1px solid #cbd5e1', 
+                  cursor: 'pointer',
+                  backgroundColor: '#ffffff',
+                  fontSize: '14px',
+                  color: '#1e293b',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <span>{customDateString}</span>
+                <i className="fa-regular fa-calendar" style={{ color: '#64748b' }}></i>
+              </div>
+
+              {/* 커스텀 달력 모달 레이어 */}
+              {showCalendar && (
+                <div 
+                  ref={calendarContainerRef}
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    width: '380px',
+                    padding: '16px 20px',
+                    zIndex: 100,
+                  }}
+                >
+                  {/* 달력 헤더 */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                    <button type="button" onClick={handlePrevMonth} style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#64748b' }}>◀</button>
+                    <span style={{ fontWeight: 800, fontSize: '15px', color: '#1e293b' }}>
+                      {currentYear}년 {currentMonth + 1}월
+                    </span>
+                    <button type="button" onClick={handleNextMonth} style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#64748b' }}>▶</button>
+                  </div>
+
+                  {/* 요일 머리글 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '11px', fontWeight: 700, color: '#94a3b8', marginBottom: '8px' }}>
+                    <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+                  </div>
+
+                  {/* 달력 날짜 그리드 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '12px' }}>
+                    {calendarCells.map((cell, idx) => {
+                      const isSelected = 
+                        selectedYear === cell.year && 
+                        selectedMonth === cell.month && 
+                        selectedDay === cell.day;
+                      
+                      return (
+                        <div key={idx} style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div
+                            onClick={() => handleSelectDay(cell)}
+                            style={{
+                              width: '34px',
+                              height: '34px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '13px',
+                              fontWeight: isSelected ? 800 : 500,
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              color: isSelected 
+                                ? '#ffffff' 
+                                : cell.isCurrentMonth ? '#1e293b' : '#94a3b8',
+                              backgroundColor: isSelected ? '#3b82f6' : 'transparent',
+                              transition: 'all 0.15s ease-in-out'
+                            }}
+                            className={!isSelected ? 'search-item-hover' : ''}
+                          >
+                            {cell.day}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* 오늘 선택 버튼 */}
+                  <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '8px', display: 'flex', justifyContent: 'center' }}>
+                    <button 
+                      type="button" 
+                      onClick={handleSelectToday}
+                      style={{
+                        width: '100%',
+                        padding: '6px 0',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        backgroundColor: '#ffffff',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        color: '#475569',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s'
+                      }}
+                      className="search-item-hover"
+                    >
+                      오늘
+                    </button>
+                  </div>
+
+                  {/* 하단 시간 조절부 (안정적인 이전 상태로 롤백) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', marginTop: '12px', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+                    
+                    <span style={{ fontSize: '13px', color: '#475569', marginRight: 'auto', fontWeight: 700 }}>시간</span>
+                    
+                    {/* [오전 09 16] 테두리 사각형 인풋 박스 (ref={timeBoxRef} 연동으로 non-passive 휠 스크롤 100% 동결 차단) */}
+                    <div 
+                      ref={timeBoxRef}
+                      className="time-input-box-wrapper"
+                      style={{ 
+                        position: 'relative',
+                        border: '1px solid #cbd5e1', 
+                        borderRadius: '10px', 
+                        padding: '0 12px', 
+                        fontSize: '13px', 
+                        backgroundColor: '#ffffff',
+                        color: '#0f172a',
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '156px', 
+                        height: '36px', 
+                        justifyContent: 'space-between',
+                        boxSizing: 'border-box',
+                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+                      }}
+                    >
+                      {/* 1. 오전/오후 텍스트 트리거 */}
+                      <div 
+                        className="ampm-trigger search-item-hover"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAmPmDropdown(prev => !prev);
+                          setShowHourDropdown(false);
+                          setShowMinuteDropdown(false);
+                          setShowTimePicker(false);
+                          setUseCurrentDate(false);
+                        }}
+                        style={{
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          fontSize: '13px',
+                          userSelect: 'none',
+                          color: '#0f172a',
+                          textAlign: 'center',
+                          padding: '2px 4px',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        {timeAmPm}
+                      </div>
+
+                      {/* 1. 오전/오후 개별 선택 팝업 */}
+                      {showAmPmDropdown && (
+                        <div 
+                          ref={ampmDropdownRef}
+                          style={{
+                            position: 'absolute',
+                            bottom: 'calc(100% + 6px)',
+                            left: '4px',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '12px', 
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                            width: '56px', 
+                            zIndex: 600,
+                            overflow: 'hidden',
+                            padding: '3px', 
+                            boxSizing: 'border-box',
+                            animation: 'fadeIn 0.15s ease-out'
+                          }}
+                        >
+                          {['오전', '오후'].map(ampm => (
+                            <div
+                              key={ampm}
+                              onClick={() => {
+                                setTimeAmPm(ampm as '오전' | '오후');
+                                setUseCurrentDate(false);
+                                setShowAmPmDropdown(false);
+                              }}
+                              style={{
+                                margin: '2px 0',
+                                padding: '6px 0',
+                                textAlign: 'center',
+                                fontSize: '13px',
+                                fontWeight: timeAmPm === ampm ? 700 : 500,
+                                color: timeAmPm === ampm ? '#ffffff' : '#475569',
+                                backgroundColor: timeAmPm === ampm ? '#3b82f6' : 'transparent',
+                                borderRadius: '8px', 
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                              className={timeAmPm !== ampm ? 'search-item-hover' : ''}
+                            >
+                              {ampm}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 2. 시(Hour) 트리거 (마우스 휠 조절 지원 & 바탕 스크롤 차단) */}
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowHourDropdown(prev => !prev);
+                          setShowMinuteDropdown(false);
+                          setShowAmPmDropdown(false);
+                          setShowTimePicker(false);
+                          setUseCurrentDate(false);
+                        }}
+                        onWheel={(e) => { e.stopPropagation(); handleHourWheel(e); }}
+                        style={{
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          fontSize: '13px',
+                          userSelect: 'none',
+                          color: '#0f172a',
+                          textAlign: 'center',
+                          padding: '2px 4px',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        {String(timeHour).padStart(2, '0')}
+                      </div>
+
+                      {/* 2. 시(Hour) 개별 숫자 입력 전용 새창 팝업 */}
+                      {showHourDropdown && (
+                        <div 
+                          ref={hourDropdownRef}
+                          style={{
+                            position: 'absolute',
+                            bottom: 'calc(100% + 6px)',
+                            left: '52px',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #3b82f6',
+                            borderRadius: '12px', 
+                            boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.18), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                            width: '64px', 
+                            zIndex: 600,
+                            padding: '6px 4px', 
+                            boxSizing: 'border-box',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            animation: 'fadeIn 0.15s ease-out'
+                          }}
+                        >
+                          <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>시간 입력</div>
+                          <input 
+                            type="number" 
+                            min="1" 
+                            max="12" 
+                            autoFocus
+                            value={timeHour} 
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (val >= 1 && val <= 12) setTimeHour(val);
+                              else if (e.target.value === '') setTimeHour(1);
+                              setUseCurrentDate(false);
+                            }}
+                            onWheel={(e) => { e.stopPropagation(); handleHourWheel(e); }}
+                            style={{
+                              width: '48px',
+                              height: '32px',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '6px',
+                              textAlign: 'center',
+                              fontWeight: 800,
+                              fontSize: '15px',
+                              color: '#3b82f6',
+                              backgroundColor: '#f8fafc',
+                              outline: 'none'
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowHourDropdown(false)}
+                            style={{
+                              width: '100%',
+                              padding: '3px 0',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: '#ffffff',
+                              backgroundColor: '#3b82f6',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            확인
+                          </button>
+                        </div>
+                      )}
+                      
+                      {/* 3. 분(Minute) 트리거 (마우스 휠 조절 지원 & 바탕 스크롤 차단) */}
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowMinuteDropdown(prev => !prev);
+                          setShowHourDropdown(false);
+                          setShowAmPmDropdown(false);
+                          setShowTimePicker(false);
+                          setUseCurrentDate(false);
+                        }}
+                        onWheel={(e) => { e.stopPropagation(); handleMinuteWheel(e); }}
+                        style={{
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          fontSize: '13px',
+                          userSelect: 'none',
+                          color: '#0f172a',
+                          textAlign: 'center',
+                          padding: '2px 4px',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        {String(timeMinute).padStart(2, '0')}
+                      </div>
+
+                      {/* 3. 분(Minute) 개별 숫자 입력 전용 새창 팝업 */}
+                      {showMinuteDropdown && (
+                        <div 
+                          ref={minuteDropdownRef}
+                          style={{
+                            position: 'absolute',
+                            bottom: 'calc(100% + 6px)',
+                            left: '98px',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #3b82f6',
+                            borderRadius: '12px', 
+                            boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.18), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                            width: '64px', 
+                            zIndex: 600,
+                            padding: '6px 4px', 
+                            boxSizing: 'border-box',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            animation: 'fadeIn 0.15s ease-out'
+                          }}
+                        >
+                          <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>분 입력</div>
+                          <input 
+                            type="number" 
+                            min="0" 
+                            max="59" 
+                            autoFocus
+                            value={timeMinute} 
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (val >= 0 && val <= 59) setTimeMinute(val);
+                              else if (e.target.value === '') setTimeMinute(0);
+                              setUseCurrentDate(false);
+                            }}
+                            onWheel={(e) => { e.stopPropagation(); handleMinuteWheel(e); }}
+                            style={{
+                              width: '48px',
+                              height: '32px',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '6px',
+                              textAlign: 'center',
+                              fontWeight: 800,
+                              fontSize: '15px',
+                              color: '#3b82f6',
+                              backgroundColor: '#f8fafc',
+                              outline: 'none'
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowMinuteDropdown(false)}
+                            style={{
+                              width: '100%',
+                              padding: '3px 0',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: '#ffffff',
+                              backgroundColor: '#3b82f6',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            확인
+                          </button>
+                        </div>
+                      )}
+
+                    </div>
+                    
+                    {/* 시계 모양 아이콘 사각형 버튼 */}
+                    <button 
+                      type="button"
+                      className="clock-btn"
+                      onClick={handleClockIconClick}
+                      style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '36px', 
+                        height: '36px', 
+                        borderRadius: '10px',
+                        border: '1px solid #d0e1fd',
+                        backgroundColor: '#f0f7ff', 
+                        color: '#3b82f6',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        boxShadow: '0 1px 2px rgba(59, 130, 246, 0.08)',
+                        outline: 'none',
+                        padding: 0, 
+                        boxSizing: 'border-box'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e0f2fe'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f0f7ff'; }}
+                      onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
+                      onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                      title="시간 전체 선택기 열기"
+                    >
+                      <i className="fa-regular fa-clock" style={{ fontSize: '18px', fontWeight: 600 }}></i>
+                    </button>
+
+                    {/* 4. 시계 클릭 시 뜨는 3열 통합 시간 선택기 (overscrollBehavior: contain 반영) */}
+                    {showTimePicker && (
+                      <div 
+                        ref={timePickerRef}
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 6px)', 
+                          right: '44px', // 좌측으로 이동하여 위 인풋 박스의 [오전 08 31] 요소와 1:1 수직 일직선 정렬
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '16px', 
+                          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', 
+                          width: '162px', 
+                          height: '136px', 
+                          display: 'grid',
+                          gridTemplateColumns: '62px 44px 44px', 
+                          columnGap: '3px',
+                          padding: '4px',
+                          zIndex: 650, 
+                          overflow: 'hidden',
+                          boxSizing: 'border-box',
+                          animation: 'fadeIn 0.15s ease-out'
+                        }}
+                      >
+                        {/* 1열: 오전 / 오후 / 완료 (3줄 고정 40px 배치) */}
+                        <div 
+                          style={{ 
+                            borderRight: '1px solid #f1f5f9', 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            padding: '4px',
+                            height: '120px',
+                            boxSizing: 'border-box',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          {/* 1행: 현재 선택된 오전오후값 (선택됨, 상시 파란색 하이라이트) */}
+                          <div 
+                            onClick={() => {
+                              setTimeAmPm(timeAmPm === '오전' ? '오후' : '오전');
+                              setUseCurrentDate(false);
+                            }}
+                            style={{ 
+                              height: '34px',
+                              margin: '1px 0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px', 
+                              cursor: 'pointer',
+                              fontWeight: 800,
+                              borderRadius: '6px',
+                              backgroundColor: '#3b82f6', 
+                              color: '#ffffff',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {timeAmPm}
+                          </div>
+                          
+                          {/* 2행: 선택 안된 오전오후값 */}
+                          <div 
+                            onClick={() => {
+                              setTimeAmPm(timeAmPm === '오전' ? '오후' : '오전');
+                              setUseCurrentDate(false);
+                            }}
+                            style={{ 
+                              height: '34px',
+                              margin: '1px 0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px', 
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              borderRadius: '6px',
+                              backgroundColor: 'transparent',
+                              color: '#475569',
+                              transition: 'all 0.15s ease'
+                            }}
+                            className="search-item-hover"
+                          >
+                            {timeAmPm === '오전' ? '오후' : '오전'}
+                          </div>
+
+                          {/* 3행: 완료 버튼 */}
+                          <div 
+                            onClick={() => setShowTimePicker(false)}
+                            style={{ 
+                              height: '34px',
+                              margin: '1px 0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px', 
+                              cursor: 'pointer',
+                              fontWeight: 800,
+                              borderRadius: '6px',
+                              backgroundColor: '#f1f5f9', 
+                              color: '#334155',
+                              transition: 'all 0.15s ease',
+                              border: '1px solid #cbd5e1'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+                          >
+                            완료
+                          </div>
+                        </div>
+
+                        {/* 2열: 시 */}
+                        <div 
+                          onWheel={handleHourWheel}
+                          style={{ 
+                            borderRight: '1px solid #f1f5f9',
+                            padding: '4px 0', 
+                            margin: 0,
+                            height: '120px', 
+                            boxSizing: 'border-box',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            overflow: 'hidden'
+                          }} 
+                        >
+                          {/* 1행: 현재 선택 시 (선택됨, 상시 파란색 하이라이트) */}
+                          <div 
+                            onClick={() => {
+                              setTimeHour(h1);
+                              setUseCurrentDate(false);
+                            }}
+                            style={{ 
+                              height: '34px', 
+                              margin: '1px 4px', 
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px', 
+                              cursor: 'pointer',
+                              fontWeight: 800,
+                              borderRadius: '6px',
+                              backgroundColor: '#3b82f6', 
+                              color: '#ffffff',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {String(h1).padStart(2, '0')}
+                          </div>
+
+                          {/* 2행: 다음 후보 시 */}
+                          <div 
+                            onClick={() => {
+                              setTimeHour(h2);
+                              setUseCurrentDate(false);
+                            }}
+                            style={{ 
+                              height: '34px', 
+                              margin: '1px 4px', 
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px', 
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              borderRadius: '6px',
+                              backgroundColor: 'transparent',
+                              color: '#475569',
+                              transition: 'all 0.15s ease'
+                            }}
+                            className="search-item-hover"
+                          >
+                            {String(h2).padStart(2, '0')}
+                          </div>
+
+                          {/* 3행: 다다음 후보 시 */}
+                          <div 
+                            onClick={() => {
+                              setTimeHour(h3);
+                              setUseCurrentDate(false);
+                            }}
+                            style={{ 
+                              height: '34px', 
+                              margin: '1px 4px', 
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px', 
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              borderRadius: '6px',
+                              backgroundColor: 'transparent',
+                              color: '#475569',
+                              transition: 'all 0.15s ease'
+                            }}
+                            className="search-item-hover"
+                          >
+                            {String(h3).padStart(2, '0')}
+                          </div>
+                        </div>
+
+                        {/* 3열: 분 */}
+                        <div 
+                          onWheel={handleMinuteWheel}
+                          style={{ 
+                            padding: '4px 0', 
+                            margin: 0,
+                            height: '120px', 
+                            boxSizing: 'border-box',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            overflow: 'hidden'
+                          }} 
+                        >
+                          {/* 1행: 현재 선택 분 (선택됨, 상시 파란색 하이라이트) */}
+                          <div 
+                            onClick={() => {
+                              setTimeMinute(m1);
+                              setUseCurrentDate(false);
+                            }}
+                            style={{ 
+                              height: '34px', 
+                              margin: '1px 4px', 
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px', 
+                              cursor: 'pointer',
+                              fontWeight: 800,
+                              borderRadius: '6px',
+                              backgroundColor: '#3b82f6', 
+                              color: '#ffffff',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {String(m1).padStart(2, '0')}
+                          </div>
+
+                          {/* 2행: 다음 후보 분 */}
+                          <div 
+                            onClick={() => {
+                              setTimeMinute(m2);
+                              setUseCurrentDate(false);
+                            }}
+                            style={{ 
+                              height: '34px', 
+                              margin: '1px 4px', 
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px', 
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              borderRadius: '6px',
+                              backgroundColor: 'transparent',
+                              color: '#475569',
+                              transition: 'all 0.15s ease'
+                            }}
+                            className="search-item-hover"
+                          >
+                            {String(m2).padStart(2, '0')}
+                          </div>
+
+                          {/* 3행: 다다음 후보 분 */}
+                          <div 
+                            onClick={() => {
+                              setTimeMinute(m3);
+                              setUseCurrentDate(false);
+                            }}
+                            style={{ 
+                              height: '34px', 
+                              margin: '1px 4px', 
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px', 
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              borderRadius: '6px',
+                              backgroundColor: 'transparent',
+                              color: '#475569',
+                              transition: 'all 0.15s ease'
+                            }}
+                            className="search-item-hover"
+                          >
+                            {String(m3).padStart(2, '0')}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+
+        {/* 3. 테이블형 제품 목록 카드 */}
+        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>제품 목록</h2>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" className="btn btn-action" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px' }} onClick={() => alert('묶음 추가 기능 (준비중)')}>
+                <i className="fa-solid fa-list-ul"></i> 일괄 추가
+              </button>
+              <button type="button" className="btn btn-action" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px' }} onClick={() => alert('엑셀 가져오기 기능 (준비중)')}>
+                <i className="fa-solid fa-file-excel"></i> 엑셀 가져오기
+              </button>
+              <button type="button" className="btn btn-action" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px' }} onClick={() => alert('바코드 스캐너 연동 (준비중)')}>
+                <i className="fa-solid fa-barcode"></i> 바코드 스캔
+              </button>
+            </div>
+          </div>
+
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+            {/* 테이블 헤더 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 40px', backgroundColor: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
+              <div>제품</div>
+              <div>현재고</div>
+              <div>{theme.label} <span style={{ color: '#ff4d4f' }}>*</span></div>
+              <div></div>
+            </div>
+
+            {/* 테이블 바디 */}
+            <div ref={dropdownRef} style={{ position: 'relative', borderBottom: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', backgroundColor: '#ffffff' }}>
+                <i className="fa-solid fa-plus" style={{ color: '#94a3b8', marginRight: '8px' }}></i>
+                <input
+                  type="text"
+                  placeholder="제품 검색 (이름, SKU, 바코드)"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setIsDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  style={{ border: 'none', width: '100%', outline: 'none', fontSize: '13px', color: '#1e293b' }}
+                />
+              </div>
+
+              {/* 검색 드롭다운 결과창 */}
+              {isDropdownOpen && searchQuery !== '' && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '0 0 8px 8px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', zIndex: 10, maxHeight: '200px', overflowY: 'auto' }}>
+                  {availableItems.length === 0 ? (
+                    <div style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>검색 결과가 없거나 이미 테이블에 추가되었습니다.</div>
+                  ) : (
+                    availableItems.map(item => (
+                      <div
+                        key={item.id}
+                        onClick={() => handleAddItem(item)}
+                        style={{ padding: '10px 16px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        className="search-item-hover"
+                      >
+                        <div>
+                          <strong style={{ display: 'block', fontSize: '13px', color: '#1e293b' }}>{item.name}</strong>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>{item.sku}</span>
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: theme.color }}>재고 {item.total_quantity}개</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 테이블 품목 리스트 영역 */}
+            <div style={{ minHeight: '100px', backgroundColor: '#ffffff' }}>
+              {selectedList.length === 0 ? (
+                <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                  {theme.title}할 제품을 검색하여 목록에 추가해 주세요.
+                </div>
+              ) : (
+                selectedList.map(row => (
+                  <div key={row.item.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 40px', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '13px', color: '#1e293b' }}>{row.item.name}</strong>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>{row.item.sku}</span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#475569' }}>{row.item.total_quantity} 개</div>
+                    <div>
+                      <input
+                        type="number"
+                        min="1"
+                        value={row.qty}
+                        onChange={(e) => handleQtyChange(row.item.id, Number(e.target.value))}
+                        style={{ width: '80px', padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px', outline: 'none' }}
+                      />
+                    </div>
+                    <div>
+                      <button type="button" onClick={() => handleRemoveItem(row.item.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }}>×</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* 테이블 요약 행 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#475569' }}>
+              <span>{selectedList.length} 개 품목</span>
+              <span>총 수량 {totalQtySum}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. 메모 입력창 카드 */}
+        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '24px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '8px' }}>비고 / 메모</span>
+          <textarea
+            className="form-input"
+            rows={3}
+            placeholder="메모 입력&#13;&#10;TIP) #태그 입력 시 목록에서 '태그'로 검색할 수 있습니다.&#13;&#10;파일을 끌어다 놓거나 붙여넣기로 첨부할 수 있습니다."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            style={{ width: '100%', resize: 'none', borderRadius: '8px', fontSize: '13px', padding: '12px', border: '1px solid #cbd5e1', outline: 'none' }}
+          />
+        </div>
+
+        {/* 5. 하단 액션 버튼 영역 */}
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', marginBottom: '40px' }}>
+          <button
+            type="submit"
+            disabled={selectedList.length === 0}
+            className="btn btn-primary"
+            style={{
+              padding: '12px 24px',
+              fontSize: '14px',
+              fontWeight: 700,
+              backgroundColor: selectedList.length === 0 ? '#cbd5e1' : theme.color,
+              color: '#ffffff',
+              borderRadius: '8px',
+              cursor: selectedList.length === 0 ? 'not-allowed' : 'pointer',
+              border: 'none',
+              boxShadow: `0 2px 4px ${theme.color}26`,
+            }}
+          >
+            {theme.title} 완료
+          </button>
+          
+          {type !== 'ADJUST' && ( 
+            <button
+              type="button"
+              className="btn btn-action"
+              onClick={() => alert('임시 저장되었습니다. (준비중)')}
+              style={{
+                padding: '12px 20px',
+                fontSize: '14px',
+                fontWeight: 700,
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#475569',
+                borderRadius: '8px',
+                cursor: 'pointer',
+              }}
             >
-              {items.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} ({item.sku}) - 현재 재고: {item.total_quantity}개
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '16px' }}>
-            <label className="form-label">
-              {type === 'ADJUST' ? '조정할 수량' : '수량'}<span className="required">*</span>
-            </label>
-            <input
-              type="number"
-              className="form-input"
-              min="1"
-              value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
-              required
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '16px' }}>
-            <label className="form-label">위치 (창고)</label>
-            <input
-              type="text"
-              className="form-input"
-              value={locationName}
-              onChange={(e) => setLocationName(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '24px' }}>
-            <label className="form-label">비고 / 사유</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="예: 정기 구매 입고, 고객 주문 출고 등"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          <footer className="form-footer">
-            <button type="submit" className="btn btn-submit">
-              {typeTitles[type]} 완료
+              임시 저장
             </button>
-          </footer>
-        </form>
-      )}
+          )}
+        </div>
+      </form>
     </div>
   );
 }

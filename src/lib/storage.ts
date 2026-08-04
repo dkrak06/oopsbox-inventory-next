@@ -61,7 +61,7 @@ export const saveItem = (newItem: Omit<Item, 'id' | 'created_at' | 'updated_at'>
     created_at: now,
     updated_at: now,
     partner: newItem.partner || '(주)영웅유통',
-    history_count: 3,
+    history_count: 0, // 신규 품목 등록 시 초기 거래 횟수는 0회로 초기화합니다. (기존 하드코딩값 3 수정)
   };
 
   const updatedItems = [createdItem, ...items];

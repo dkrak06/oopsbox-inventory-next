@@ -7,6 +7,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image'; // Next.js 최적화 이미지 컴포넌트 임포트
+
 
 interface SidebarProps {
   isOpen: boolean;
@@ -68,15 +70,17 @@ export default function Sidebar({
           <div
             className="logo"
             onClick={() => onNavigate('dashboard')}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            <i className="fa-solid fa-box-archive" style={{ fontSize: '24px', color: '#3b82f6' }}></i>
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>웁스 박스</span>
-              <span style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 700, letterSpacing: '1px' }}>
-                OOPS BOX
-              </span>
-            </div>
+            {/* 파란색 박스 아이콘과 글자 대신 새로 등록한 가로형 로고 이미지로 교체 */}
+            <Image
+              src="/images/logo.png" // public/images/logo.png 경로 참조
+              alt="웁스박스 로고"
+              width={160} // 가로 크기 지정
+              height={50} // 세로 크기 지정
+              style={{ objectFit: 'contain' }} // 비율 유지를 위한 스타일 설정
+              priority // 첫 로드 시 즉시 보이도록 우선 순위 부여
+            />
           </div>
         </div>
 

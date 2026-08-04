@@ -16,7 +16,8 @@ import HistoryView from '@/components/HistoryView';
 import BarcodePrintView from '@/components/BarcodePrintView';
 import GenericPageView from '@/components/GenericPageView';
 import AuthModal from '@/components/AuthModal';
-import { getStoredItems, Item } from '@/lib/storage';
+import { getStoredItems, getStoredHistories, Item, StockHistory } from '@/lib/storage'; // 로컬 저장소 유틸리티 임포트 및 타입 추가
+
 
 export default function Home() {
   // 모바일 사이드바 상태
@@ -28,13 +29,17 @@ export default function Home() {
 
   // 실시간 제품 목록 상태
   const [items, setItems] = useState<Item[]>([]);
+  // 실시간 재고 변동 히스토리 상태 (최근 입출고 내역 바인딩용)
+  const [histories, setHistories] = useState<StockHistory[]>([]);
 
-  const refreshItems = () => {
+  // 제품 목록과 히스토리 데이터를 동시에 갱신하는 헬퍼 함수
+  const refreshData = () => {
     setItems(getStoredItems());
+    setHistories(getStoredHistories());
   };
 
   useEffect(() => {
-    refreshItems();
+    refreshData();
   }, [currentPath]);
 
   // 스크린샷 1,2,3 전 전체 메뉴 타이틀 동적 생성 매핑 테이블
@@ -79,10 +84,11 @@ export default function Home() {
     return titles[path] || '웁스박스 재고관리';
   };
 
-  // 대시보드 집계 연산
-  const totalItemTypes = items.length;
-  const totalQuantity = items.reduce((acc, item) => acc + item.total_quantity, 0);
-  const lowStockCount = items.filter((item) => item.total_quantity < 5).length;
+  // 대시보드 상단 카드용 집계 연산
+  const totalItemTypes = items.length; // 1. 전체 품목 종류 수
+  const totalQuantity = items.reduce((acc, item) => acc + item.total_quantity, 0); // 2. 창고 전체 합산 수량
+  const lowStockCount = items.filter((item) => item.total_quantity < 5).length; // 3. 5개 미만인 부족 건수
+  const totalHistoryCount = histories.length; // 4. 전체 거래 레코드 건수
 
   return (
     <div className="app-container">
@@ -108,57 +114,136 @@ export default function Home() {
         <main className="main-content">
           {/* 라우팅 조건 분기 */}
           {currentPath === 'dashboard' || currentPath === 'reports-dashboard' ? (
-            <div>
+            <div className="dashboard-container">
+              {/* 상단 4열 요약 카드 그리드 */}
               <div className="dashboard-grid">
+                {/* 카드 1: 등록된 제품 종류 */}
                 <div className="card">
-                  <div className="card-title">전체 제품 종류</div>
-                  <div className="card-value">{totalItemTypes} 개</div>
-                  <div className="card-desc">현재 등록된 총 품목 수</div>
+                  <div className="card-info">
+                    <div className="card-title">등록된 제품 종류</div>
+                    <div className="card-value">{totalItemTypes} <span className="unit">종</span></div>
+                    <div className="card-desc">총 보관 마스터 품목수</div>
+                  </div>
+                  <i className="fa-solid fa-boxes-stacked card-bg-icon"></i>
                 </div>
+                
+                {/* 카드 2: 총 재고 수량 */}
                 <div className="card">
-                  <div className="card-title">총 재고 수량</div>
-                  <div className="card-value">{totalQuantity.toLocaleString()} 개</div>
-                  <div className="card-desc">모든 위치의 합산 재고</div>
+                  <div className="card-info">
+                    <div className="card-title">총 재고 수량</div>
+                    <div className="card-value">{totalQuantity.toLocaleString()} <span className="unit">개</span></div>
+                    <div className="card-desc">창고 전체 품목 합산</div>
+                  </div>
+                  <i className="fa-solid fa-warehouse card-bg-icon"></i>
                 </div>
+                
+                {/* 카드 3: 안전 재고 부족 (수량 5개 미만 시 노란색/빨간색 강조) */}
+                <div className="card warning">
+                  <div className="card-info">
+                    <div className="card-title">안전 재고 부족</div>
+                    <div className="card-value text-danger">{lowStockCount} <span className="unit">건</span></div>
+                    <div className="card-desc">신속한 입고 검토 필요</div>
+                  </div>
+                  <i className="fa-solid fa-triangle-exclamation card-bg-icon text-danger-icon"></i>
+                </div>
+                
+                {/* 카드 4: 총 입출고 건수 */}
                 <div className="card">
-                  <div className="card-title">재고 부족 경고</div>
-                  <div className="card-value text-danger">{lowStockCount} 개</div>
-                  <div className="card-desc">수량 5개 미만 품목</div>
+                  <div className="card-info">
+                    <div className="card-title">총 입출고 건수</div>
+                    <div className="card-value">{totalHistoryCount} <span className="unit">건</span></div>
+                    <div className="card-desc">누적된 이력 레코드</div>
+                  </div>
+                  <i className="fa-solid fa-clock-rotate-left card-bg-icon"></i>
                 </div>
               </div>
 
-              <div className="boxhero-style-form" style={{ maxWidth: '1000px', marginTop: '24px' }}>
-                <h2 className="section-title">최근 등록된 제품</h2>
-                {items.length === 0 ? (
-                  <p style={{ color: '#94a3b8', padding: '16px 0' }}>등록된 제품이 없습니다.</p>
-                ) : (
-                  <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {items.slice(0, 5).map((item) => (
-                      <li
-                        key={item.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          padding: '12px 0',
-                          borderBottom: '1px solid #f1f5f9',
-                        }}
-                      >
-                        <div>
-                          <strong style={{ display: 'block' }}>{item.name}</strong>
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>{item.sku}</span>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ fontWeight: 700, color: '#3b82f6' }}>
-                            {item.total_quantity} 개
-                          </span>
-                          <span style={{ display: 'block', fontSize: '12px', color: '#64748b' }}>
-                            ₩{item.selling_price.toLocaleString()}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+              {/* 최근 입출고 변동 내역 테이블 카드 */}
+              <div className="dashboard-table-card">
+                <div className="table-card-header">
+                  <h3 className="table-card-title">최근 입출고 변동 내역</h3>
+                  <button className="btn-more" onClick={() => setCurrentPath('history')}>더 보기</button>
+                </div>
+                <div className="table-wrapper">
+                  <table className="dashboard-table">
+                    <thead>
+                      <tr>
+                        <th>전산 번호</th>
+                        <th>제품명</th>
+                        <th>변동구분</th>
+                        <th>수량</th>
+                        <th>일시</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {histories.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="no-data">내역이 없습니다.</td>
+                        </tr>
+                      ) : (
+                        histories.slice(0, 5).map((history) => (
+                          <tr key={history.id}>
+                            <td className="sku-cell">{history.id}</td>
+                            <td className="name-cell">{history.item_name}</td>
+                            <td>
+                              <span className={`badge badge-${history.type.toLowerCase()}`}>
+                                {history.type_label}
+                              </span>
+                            </td>
+                            <td className={`qty-cell ${history.type === 'IN' ? 'text-success' : history.type === 'OUT' ? 'text-danger' : ''}`}>
+                              {history.type === 'IN' ? `+${history.qty_change}` : history.type === 'OUT' ? `-${history.qty_change}` : history.qty_change} 개
+                            </td>
+                            <td className="date-cell">{history.created_at}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 하단 2열 레이아웃 그리드 */}
+              <div className="dashboard-bottom-grid">
+                {/* 빠른 바로가기 카드 */}
+                <div className="bottom-card">
+                  <h3 className="bottom-card-title">⚡ 빠른 바로가기</h3>
+                  <div className="quick-actions">
+                    <button className="btn-quick btn-quick-in" onClick={() => setCurrentPath('stock-in')}>
+                      <i className="fa-solid fa-circle-arrow-down"></i> 입고 등록
+                    </button>
+                    <button className="btn-quick btn-quick-out" onClick={() => setCurrentPath('stock-out')}>
+                      <i className="fa-solid fa-circle-arrow-up"></i> 출고 등록
+                    </button>
+                    <button className="btn-quick btn-quick-add" onClick={() => setCurrentPath('add-item')}>
+                      <i className="fa-solid fa-plus"></i> 신규 제품
+                    </button>
+                  </div>
+                </div>
+
+                {/* 재고 부족 알림 리스트 카드 */}
+                <div className="bottom-card">
+                  <h3 className="bottom-card-title">
+                    <i className="fa-solid fa-bell text-warning-icon" style={{ color: '#f59e0b', marginRight: '6px' }}></i> 
+                    재고 부족 알림 리스트
+                  </h3>
+                  <div className="low-stock-list-container">
+                    {items.filter(item => item.total_quantity < 5).length === 0 ? (
+                      <div className="no-data">안전 재고가 부족한 제품이 없습니다.</div>
+                    ) : (
+                      <div className="low-stock-scroll-list">
+                        {items.filter(item => item.total_quantity < 5).map(item => (
+                          <div key={item.id} className="low-stock-item">
+                            <div className="low-stock-item-info">
+                              <span className="low-stock-name">{item.name}</span>
+                              <span className="low-stock-sku">{item.sku}</span>
+                            </div>
+                            <span className="low-stock-qty text-danger">{item.total_quantity} 개 남음</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ) : currentPath === 'items' ? (
@@ -166,7 +251,7 @@ export default function Home() {
           ) : currentPath === 'add-item' ? (
             <ProductForm
               onSuccess={() => {
-                refreshItems();
+                refreshData();
                 setCurrentPath('items');
               }}
             />
@@ -174,7 +259,7 @@ export default function Home() {
             <StockMovementForm
               type="IN"
               onSuccess={() => {
-                refreshItems();
+                refreshData();
                 setCurrentPath('history');
               }}
             />
@@ -182,7 +267,7 @@ export default function Home() {
             <StockMovementForm
               type="OUT"
               onSuccess={() => {
-                refreshItems();
+                refreshData();
                 setCurrentPath('history');
               }}
             />
@@ -190,7 +275,7 @@ export default function Home() {
             <StockMovementForm
               type="ADJUST"
               onSuccess={() => {
-                refreshItems();
+                refreshData();
                 setCurrentPath('history');
               }}
             />
@@ -198,7 +283,7 @@ export default function Home() {
             <StockMovementForm
               type="MOVE"
               onSuccess={() => {
-                refreshItems();
+                refreshData();
                 setCurrentPath('history');
               }}
             />
