@@ -126,27 +126,18 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
     setPartnerList(getStoredPartners());
   }, []);
 
-  // initialItem, initialLocation, initialPartner 및 type 변경 시 즉시 폼 상태 동기화
-  // 전달받은 initialItem이 있으면 해당 품목을 selectedList에 유지합니다!
+  // initialItem, initialLocation, initialPartner Props 변경 시 즉시 폼 상태에 바인딩
   useEffect(() => {
-    setUseCurrentDate(true);
-    setSelectedList(initialItem ? [{ item: initialItem, qty: 1 }] : []);
+    if (initialItem) {
+      setSelectedList([{ item: initialItem, qty: 1 }]);
+    }
     if (initialLocation) {
       setWarehouse(initialLocation);
     }
     if (initialPartner) {
       setPartner(initialPartner);
     }
-    setSearchQuery('');
-    setNotes('');
-    setShowCalendar(false);
-    setShowTimePicker(false);
-    setShowAmPmDropdown(false);
-    setShowHourDropdown(false);
-    setShowMinuteDropdown(false);
-    setShowLocationDropdown(false);
-    setShowPartnerDropdown(false);
-  }, [type, initialItem, initialLocation, initialPartner]);
+  }, [initialItem, initialLocation, initialPartner]);
 
   // 신규 거래처 등록 처리 함수 (스크린샷 3 거래처 추가 모달 제출)
   const handleCreatePartner = (e: React.FormEvent) => {
