@@ -121,11 +121,23 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
   const theme = typeThemes[type];
 
   // 컴포넌트 마운트 시 저장소에서 품목 데이터 및 거래처 목록 로드
-  // initialItem/initialLocation/initialPartner는 useState 초기값에서 이미 처리됨
   useEffect(() => {
     setDbItems(getStoredItems());
     setPartnerList(getStoredPartners());
   }, []);
+
+  // initialItem, initialLocation, initialPartner가 전달되거나 변경될 때 즉시 폼 상태 동기화
+  useEffect(() => {
+    if (initialItem) {
+      setSelectedList([{ item: initialItem, qty: 1 }]);
+    }
+    if (initialLocation) {
+      setWarehouse(initialLocation);
+    }
+    if (initialPartner) {
+      setPartner(initialPartner);
+    }
+  }, [initialItem, initialLocation, initialPartner]);
 
   // 신규 거래처 등록 처리 함수 (스크린샷 3 거래처 추가 모달 제출)
   const handleCreatePartner = (e: React.FormEvent) => {
