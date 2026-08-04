@@ -126,11 +126,16 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
     setPartnerList(getStoredPartners());
   }, []);
 
-  // initialItem, initialLocation, initialPartner Props 변경 시 즉시 폼 상태에 바인딩
+  // initialItem, initialLocation, initialPartner 변경 시 즉시 폼 상태 동기화
   useEffect(() => {
     if (initialItem) {
       setSelectedList([{ item: initialItem, qty: 1 }]);
+      setSearchQuery('');
+      setIsDropdownOpen(false); // 드롭다운 창을 확실히 닫아줍니다!
+    } else {
+      setSelectedList([]);
     }
+
     if (initialLocation) {
       setWarehouse(initialLocation);
     }
