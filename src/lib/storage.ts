@@ -37,6 +37,31 @@ export interface StockHistory {
 
 const ITEMS_KEY = 'hb_items';
 const HISTORY_KEY = 'hb_stock_history';
+const LOCATIONS_KEY = 'hb_locations';
+
+// 0. 위치 목록 관리 함수 (전용 hb_locations 키)
+// 거래처명이 위치 목록에 섯잇는 문제를 근본 해결!
+export const getStoredLocations = (): string[] => {
+  if (typeof window === 'undefined') return ['기본 위치'];
+  try {
+    const data = localStorage.getItem(LOCATIONS_KEY);
+    const parsed: string[] = data ? JSON.parse(data) : [];
+    // 항상 '기본 위치'는 목록의 첫 번째로
+    if (!parsed.includes('기본 위치')) parsed.unshift('기본 위치');
+    return parsed;
+  } catch {
+    return ['기본 위치'];
+  }
+};
+
+export const saveLocationName = (locationName: string): void => {
+  if (!locationName || locationName === '기본 위치') return;
+  const current = getStoredLocations();
+  if (!current.includes(locationName)) {
+    const updated = [...current, locationName];
+    localStorage.setItem(LOCATIONS_KEY, JSON.stringify(updated));
+  }
+};
 
 // 1. 전체 제품 목록 불러오기 함수
 export const getStoredItems = (): Item[] => {
@@ -76,6 +101,23 @@ export const deleteItem = (itemId: string): void => {
   localStorage.setItem(ITEMS_KEY, JSON.stringify(filtered));
 };
 
+// 3-1. 특정 제품 정보 수정하기 함수
+export const updateItem = (itemId: string, updatedFields: Partial<Omit<Item, 'id' | 'created_at'>>): Item[] => {
+  const items = getStoredItems();
+  const updated = items.map((item) => {
+    if (item.id === itemId) {
+      return {
+        ...item,
+        ...updatedFields,
+        updated_at: new Date().toISOString(),
+      };
+    }
+    return item;
+  });
+  localStorage.setItem(ITEMS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
 // 4. 재고 입출고/조정 기록 및 수량 업데이트 함수
 export const recordStockMovement = (
   itemId: string,
@@ -102,6 +144,9 @@ export const recordStockMovement = (
 
     items[itemIndex] = targetItem;
     localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
+
+    // 신규 위치명이면 hb_locations에 자동 등록 (거래처명이 위치 목록에 섯입는 문제 근본 차단!)
+    saveLocationName(locationName);
 
     // 히스토리 생성 및 저장
     const historyData: StockHistory = {
@@ -130,4 +175,131 @@ export const getStoredHistories = (): StockHistory[] => {
   } catch (error) {
     return [];
   }
+};
+
+const PARTNERS_KEY = 'hb_partners';
+const PARTNER_OBJECTS_KEY = 'hb_partner_objects';
+
+export interface PartnerItem {
+  id: string;
+  type: '공급자' | '고객';
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  memo: string;
+  language: string;
+  isFavorite?: boolean;
+  created_at: string;
+}
+
+// 6. 거래처 이름 목록 불러오기 함수
+export const getStoredPartners = (): string[] => {
+  if (typeof window === 'undefined') return ['(주)영웅유통', 'DD', '신규 거래처'];
+  try {
+    const list = getStoredPartnerObjects();
+    if (list.length > 0) return list.map(p => p.name);
+    const data = localStorage.getItem(PARTNERS_KEY);
+    return data ? JSON.parse(data) : ['(주)영웅유통', 'DD', '신규 거래처'];
+  } catch (error) {
+    return ['(주)영웅유통', 'DD', '신규 거래처'];
+  }
+};
+
+// 7. 상세 거래처 객체 목록 불러오기 함수
+export const getStoredPartnerObjects = (): PartnerItem[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(PARTNER_OBJECTS_KEY);
+    if (data) return JSON.parse(data);
+    // 기본 샘플 데이터 제공 (이미지 2 참고)
+    const initial: PartnerItem[] = [
+      {
+        id: 'PARTNER-1',
+        type: '공급자',
+        name: 'DD',
+        phone: '1010',
+        email: 'DD@D.H',
+        address: 'DD',
+        memo: '기본 메모',
+        language: 'ko',
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'PARTNER-2',
+        type: '공급자',
+        name: '(주)영웅유통',
+        phone: '02-1234-5678',
+        email: 'hero@dist.com',
+        address: '서울시 강남구',
+        memo: '메인 공급처',
+        language: 'ko',
+        created_at: new Date().toISOString()
+      }
+    ];
+    localStorage.setItem(PARTNER_OBJECTS_KEY, JSON.stringify(initial));
+    return initial;
+  } catch (error) {
+    return [];
+  }
+};
+
+// 8. 새 상세 거래처 저장하기 함수
+export const savePartnerObject = (newPartner: Omit<PartnerItem, 'id' | 'created_at'>): PartnerItem[] => {
+  const current = getStoredPartnerObjects();
+  const created: PartnerItem = {
+    ...newPartner,
+    id: 'PARTNER-' + Date.now(),
+    created_at: new Date().toISOString()
+  };
+  const updated = [created, ...current];
+  localStorage.setItem(PARTNER_OBJECTS_KEY, JSON.stringify(updated));
+  
+  // 간단 이름 배열도 동기화
+  const names = updated.map(p => p.name);
+  localStorage.setItem(PARTNERS_KEY, JSON.stringify(names));
+  
+  return updated;
+};
+
+// 9. 특정 거래처 삭제 함수
+export const deletePartnerObject = (id: string): PartnerItem[] => {
+  const current = getStoredPartnerObjects();
+  const updated = current.filter(p => p.id !== id);
+  localStorage.setItem(PARTNER_OBJECTS_KEY, JSON.stringify(updated));
+  
+  const names = updated.map(p => p.name);
+  localStorage.setItem(PARTNERS_KEY, JSON.stringify(names));
+  
+  return updated;
+};
+
+// 10. 특정 거래처 즐겨찾기 (상단 우선정렬) 토글 함수
+export const togglePartnerFavorite = (id: string): PartnerItem[] => {
+  const current = getStoredPartnerObjects();
+  const updated = current.map(p => {
+    if (p.id === id) {
+      return { ...p, isFavorite: !p.isFavorite };
+    }
+    return p;
+  });
+  localStorage.setItem(PARTNER_OBJECTS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+// 11. 특정 거래처 정보 수정 함수
+export const updatePartnerObject = (id: string, updatedFields: Omit<PartnerItem, 'id' | 'created_at'>): PartnerItem[] => {
+  const current = getStoredPartnerObjects();
+  const updated = current.map(p => {
+    if (p.id === id) {
+      return { ...p, ...updatedFields };
+    }
+    return p;
+  });
+  localStorage.setItem(PARTNER_OBJECTS_KEY, JSON.stringify(updated));
+  
+  const names = updated.map(p => p.name);
+  localStorage.setItem(PARTNERS_KEY, JSON.stringify(names));
+  
+  return updated;
 };

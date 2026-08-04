@@ -7,7 +7,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { getStoredItems, recordStockMovement, Item } from '@/lib/storage';
+import { getStoredItems, recordStockMovement, getStoredPartners, savePartnerObject, getStoredLocations, Item } from '@/lib/storage';
+import ProductForm from '@/components/ProductForm';
 
 interface SelectedItemRow {
   item: Item;
@@ -17,16 +18,47 @@ interface SelectedItemRow {
 interface StockMovementFormProps {
   type: 'IN' | 'OUT' | 'ADJUST' | 'MOVE';
   onSuccess: () => void;
+  initialItem?: Item | null;
+  initialLocation?: string | null;
+  initialPartner?: string | null;
 }
 
-export default function StockMovementForm({ type, onSuccess }: StockMovementFormProps) {
+export default function StockMovementForm({ type, onSuccess, initialItem, initialLocation, initialPartner }: StockMovementFormProps) {
   // 전체 마스터 제품 목록 상태
   const [dbItems, setDbItems] = useState<Item[]>([]);
   
-  // 위치 메타데이터 상태 (출발지 및 목적지 창고)
-  const [warehouse, setWarehouse] = useState<string>('기본창고');
-  const [toWarehouse, setToWarehouse] = useState<string>('A창고'); // 이동(MOVE) 기능 시 목적지 창고
-  const [partner, setPartner] = useState<string>(''); // 거래처
+  // 위치 메타데이터 상태 (전달받은 initialLocation이 있으면 마운트 즉시 바인딩!)
+  const [warehouse, setWarehouse] = useState<string>(initialLocation || '선택하세요');
+  const [toWarehouse, setToWarehouse] = useState<string>('A창고');
+  const [partner, setPartner] = useState<string>(initialPartner || '선택하세요');
+  
+  // 위치 및 거래처 선택 드롭다운 토글 상태
+  const [showLocationDropdown, setShowLocationDropdown] = useState<boolean>(false);
+  const [showPartnerDropdown, setShowPartnerDropdown] = useState<boolean>(false);
+  
+  // 거래처 목록 상태
+  // 거래처 목록 상태 (getStoredPartners()로 실제 저장된 목록으로 초기화)
+  const [partnerList, setPartnerList] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return ['선택하세요'];
+    return getStoredPartners();
+  });
+
+  // 모달 팝업 상태 (거래처 추가, 일괄 추가, 제품 추가 모달)
+  const [showAddPartnerModal, setShowAddPartnerModal] = useState<boolean>(false);
+  const [showBulkAddModal, setShowBulkAddModal] = useState<boolean>(false);
+  const [showProductModal, setShowProductModal] = useState<boolean>(false);
+
+  // 거래처 추가 모달 입력 폼 상태
+  const [newPartnerName, setNewPartnerName] = useState<string>('');
+  const [newPartnerPhone, setNewPartnerPhone] = useState<string>('');
+  const [newPartnerEmail, setNewPartnerEmail] = useState<string>('');
+  const [newPartnerAddress, setNewPartnerAddress] = useState<string>('');
+  const [newPartnerMemo, setNewPartnerMemo] = useState<string>('');
+
+  // 일괄 추가 모달 수량 입력 상태
+  const [bulkSearchQuery, setBulkSearchQuery] = useState<string>('');
+  const [bulkQtyMap, setBulkQtyMap] = useState<{ [itemId: string]: number }>({});
+  const [bulkOnlyStock, setBulkOnlyStock] = useState<boolean>(false);
   
   // 날짜 관련 상태 (기본은 '현재', 사용자 지정 시 캘린더에 연동)
   const [useCurrentDate, setUseCurrentDate] = useState<boolean>(true);
@@ -59,8 +91,10 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
   
   const [notes, setNotes] = useState<string>(''); // 메모
 
-  // 테이블에 추가된 예정 제품 리스트
-  const [selectedList, setSelectedList] = useState<SelectedItemRow[]>([]);
+  // 테이블에 추가된 예정 제품 리스트 (initialItem이 있으면 마운트 즉시 담아서 시작!)
+  const [selectedList, setSelectedList] = useState<SelectedItemRow[]>(
+    initialItem ? [{ item: initialItem, qty: 1 }] : []
+  );
   
   // 제품 검색창 제어 상태
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -86,18 +120,110 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
 
   const theme = typeThemes[type];
 
-  // 컴포넌트 마운트 시 저장소에서 품목 데이터 로드
+  // 컴포넌트 마운트 시 저장소에서 품목 데이터 및 거래처 목록 로드
+  // initialItem/initialLocation/initialPartner는 useState 초기값에서 이미 처리됨
   useEffect(() => {
     setDbItems(getStoredItems());
+    setPartnerList(getStoredPartners());
   }, []);
 
-  // 외부 영역 클릭 시 검색 드롭다운, 달력, 시간 픽커, 오전오후 드롭다운, 개별 시/분 드롭다운 모달을 자동으로 닫는 통합 감지 이펙트
+  // 신규 거래처 등록 처리 함수 (스크린샷 3 거래처 추가 모달 제출)
+  const handleCreatePartner = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPartnerName.trim()) {
+      alert('거래처 이름을 입력해 주세요.');
+      return;
+    }
+    savePartnerObject({
+      type: '공급자',
+      name: newPartnerName.trim(),
+      phone: newPartnerPhone.trim(),
+      email: newPartnerEmail.trim(),
+      address: newPartnerAddress.trim(),
+      memo: newPartnerMemo.trim(),
+      language: 'ko'
+    });
+    const updatedNames = getStoredPartners();
+    setPartnerList(updatedNames);
+    setPartner(newPartnerName.trim());
+    setNewPartnerName('');
+    setNewPartnerPhone('');
+    setNewPartnerEmail('');
+    setNewPartnerAddress('');
+    setNewPartnerMemo('');
+    setShowAddPartnerModal(false);
+    alert(`'${newPartnerName.trim()}' 거래처가 추가되었습니다!`);
+  };
+
+  // 일괄 추가 모달 제출 처리 함수 (스크린샷 5 일괄 추가)
+  const handleConfirmBulkAdd = () => {
+    const itemsToAdd: SelectedItemRow[] = [];
+    Object.entries(bulkQtyMap).forEach(([itemId, qty]) => {
+      if (qty > 0) {
+        const found = dbItems.find(i => i.id === itemId);
+        if (found) {
+          itemsToAdd.push({ item: found, qty });
+        }
+      }
+    });
+
+    if (itemsToAdd.length === 0) {
+      alert('추가할 제품의 입고 수량을 1개 이상 입력해 주세요.');
+      return;
+    }
+
+    // 기존 목록에 수량 합산하여 일괄 추가
+    setSelectedList(prev => {
+      const nextList = [...prev];
+      itemsToAdd.forEach(newItemRow => {
+        const existingIdx = nextList.findIndex(r => r.item.id === newItemRow.item.id);
+        if (existingIdx !== -1) {
+          nextList[existingIdx] = {
+            ...nextList[existingIdx],
+            qty: nextList[existingIdx].qty + newItemRow.qty
+          };
+        } else {
+          nextList.push(newItemRow);
+        }
+      });
+      return nextList;
+    });
+
+    setBulkQtyMap({});
+    setShowBulkAddModal(false);
+  };
+
+  // 입출고/조정/이동 탭(type) 변경 시 제품 목록, 날짜, 검색, 메모만 초기화
+  // warehouse(위치)와 partner(거래처)는 initialLocation/initialPartner로 세팅된 값을 유지해야 하므로 여기서 초기화 안 함!
+  useEffect(() => {
+    setUseCurrentDate(true);
+    setSelectedList([]);
+    setSearchQuery('');
+    setNotes('');
+    setShowCalendar(false);
+    setShowTimePicker(false);
+    setShowAmPmDropdown(false);
+    setShowHourDropdown(false);
+    setShowMinuteDropdown(false);
+    setShowLocationDropdown(false);
+    setShowPartnerDropdown(false);
+  }, [type]);
+
+  // 외부 영역 클릭 시 검색 드롭다운, 달력, 시간 픽커, 위치/거래처 드롭다운 모달을 자동으로 닫는 통합 감지 이펙트
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
 
       if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setIsDropdownOpen(false);
+      }
+
+      if (showLocationDropdown && !target.closest('.location-select-wrapper')) {
+        setShowLocationDropdown(false);
+      }
+
+      if (showPartnerDropdown && !target.closest('.partner-select-wrapper')) {
+        setShowPartnerDropdown(false);
       }
 
       if (showTimePicker && timePickerRef.current && !timePickerRef.current.contains(target)) {
@@ -148,7 +274,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
     };
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [showTimePicker, showAmPmDropdown, showHourDropdown, showMinuteDropdown, showCalendar]);
+  }, [showLocationDropdown, showPartnerDropdown, showTimePicker, showAmPmDropdown, showHourDropdown, showMinuteDropdown, showCalendar]);
 
   // 날짜/시간 상태가 변경될 때마다 화면에 표출할 포맷팅된 날짜 문자열 계산
   useEffect(() => {
@@ -266,6 +392,13 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
       item.barcode.includes(searchQuery);
     return !isAlreadySelected && matchesKeyword;
   });
+
+  // 전용 hb_locations 키에서 위치 목록 조회 → 거래처명 오염 없는 순수한 위치 목록!
+  const dynamicLocations = getStoredLocations();
+  // initialLocation이 목록에 없으면 임시로 표시
+  if (initialLocation && !dynamicLocations.includes(initialLocation)) {
+    dynamicLocations.unshift(initialLocation);
+  }
 
   // 검색창 품목 선택 핸들러
   const handleAddItem = (item: Item) => {
@@ -473,7 +606,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
         {/* 2. 메타데이터 입력 카드 */}
         <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           
-          {/* 위치 선택 */}
+          {/* 위치 선택 (드롭다운 연동) */}
           <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>위치 <span style={{ color: '#ff4d4f' }}>*</span></span>
             {type === 'MOVE' ? (
@@ -491,23 +624,165 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                 </select>
               </div>
             ) : (
-              <select className="form-input" value={warehouse} onChange={(e) => setWarehouse(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', width: '100%', maxWidth: '380px' }}>
-                <option value="기본창고">기본창고</option>
-                <option value="A창고">A창고</option>
-                <option value="B창고">B창고</option>
-              </select>
+              <div className="location-select-wrapper" style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
+                <div
+                  onClick={() => setShowLocationDropdown(prev => !prev)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    color: warehouse === '선택하세요' ? '#94a3b8' : '#1e293b',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <span>{warehouse}</span>
+                  <i className={`fa-solid fa-chevron-${showLocationDropdown ? 'up' : 'down'}`} style={{ fontSize: '11px', color: '#94a3b8' }}></i>
+                </div>
+
+                {/* 위치 드롭다운 팝업 리스트 */}
+                {showLocationDropdown && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 4px)',
+                      left: 0,
+                      width: '100%',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                      zIndex: 300,
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {dynamicLocations.map(locName => (
+                      <div
+                        key={locName}
+                        onClick={() => {
+                          setWarehouse(locName);
+                          setShowLocationDropdown(false);
+                        }}
+                        style={{
+                          padding: '10px 14px',
+                          fontSize: '13px',
+                          color: warehouse === locName ? '#3b82f6' : '#1e293b',
+                          fontWeight: warehouse === locName ? 700 : 500,
+                          backgroundColor: warehouse === locName ? '#f0f9ff' : 'transparent',
+                          cursor: 'pointer'
+                        }}
+                        className="search-item-hover"
+                      >
+                        {locName}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
-          {/* 거래처 선택 */}
+          {/* 거래처 선택 (스크린샷 2,3 거래처 추가 모달 연동) */}
           {(type === 'IN' || type === 'OUT') && (
             <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>거래처</span>
-              <select className="form-input" value={partner} onChange={(e) => setPartner(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', width: '100%', maxWidth: '380px' }}>
-                <option value="">선택하세요</option>
-                <option value="(주)영웅유통">(주)영웅유통</option>
-                <option value="(주)웁스상사">(주)웁스상사</option>
-              </select>
+              <div className="partner-select-wrapper" style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
+                <div
+                  onClick={() => setShowPartnerDropdown(prev => !prev)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    color: partner === '선택하세요' ? '#94a3b8' : '#1e293b',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <span>{partner}</span>
+                  <i className={`fa-solid fa-chevron-${showPartnerDropdown ? 'up' : 'down'}`} style={{ fontSize: '11px', color: '#94a3b8' }}></i>
+                </div>
+
+                {/* 거래처 드롭다운 팝업 리스트 */}
+                {showPartnerDropdown && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 4px)',
+                      left: 0,
+                      width: '100%',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                      zIndex: 300,
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <div
+                      onClick={() => {
+                        setPartner('없음');
+                        setShowPartnerDropdown(false);
+                      }}
+                      style={{ padding: '10px 14px', fontSize: '13px', color: '#3b82f6', fontWeight: 600, cursor: 'pointer', backgroundColor: '#f8fafc' }}
+                      className="search-item-hover"
+                    >
+                      없음
+                    </div>
+                    {partnerList.map(pName => (
+                      <div
+                        key={pName}
+                        onClick={() => {
+                          setPartner(pName);
+                          setShowPartnerDropdown(false);
+                        }}
+                        style={{
+                          padding: '10px 14px',
+                          fontSize: '13px',
+                          color: partner === pName ? '#3b82f6' : '#1e293b',
+                          fontWeight: partner === pName ? 700 : 500,
+                          cursor: 'pointer'
+                        }}
+                        className="search-item-hover"
+                      >
+                        {pName}
+                      </div>
+                    ))}
+                    {/* 드롭다운 하단 + 추가하기 버튼 (스크린샷 2 모달 트리거) */}
+                    <div
+                      onClick={() => {
+                        setShowPartnerDropdown(false);
+                        setShowAddPartnerModal(true);
+                      }}
+                      style={{
+                        padding: '10px 14px',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: '#3b82f6',
+                        borderTop: '1px solid #f1f5f9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                        backgroundColor: '#ffffff'
+                      }}
+                      className="search-item-hover"
+                    >
+                      <i className="fa-solid fa-plus"></i> 추가하기
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1286,25 +1561,41 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>제품 목록</h2>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="button" className="btn btn-action" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px' }} onClick={() => alert('묶음 추가 기능 (준비중)')}>
-                <i className="fa-solid fa-list-ul"></i> 일괄 추가
+              {/* 스크린샷 1, 5 ≡+ 일괄 추가 버튼 */}
+              <button
+                type="button"
+                className="btn btn-action search-item-hover"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+                onClick={() => setShowBulkAddModal(true)}
+              >
+                <i className="fa-solid fa-bars-staggered"></i> 일괄 추가
               </button>
-              <button type="button" className="btn btn-action" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px' }} onClick={() => alert('엑셀 가져오기 기능 (준비중)')}>
+              <button
+                type="button"
+                className="btn btn-action search-item-hover"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+                onClick={() => alert('엑셀 가져오기 기능 (준비중)')}
+              >
                 <i className="fa-solid fa-file-excel"></i> 엑셀 가져오기
               </button>
-              <button type="button" className="btn btn-action" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px' }} onClick={() => alert('바코드 스캐너 연동 (준비중)')}>
-                <i className="fa-solid fa-barcode"></i> 바코드 스캔
+              <button
+                type="button"
+                className="btn btn-action search-item-hover"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+                onClick={() => alert('바코드 스캐너 연동 (준비중)')}
+              >
+                <i className="fa-solid fa-expand"></i> 바코드 스캔
               </button>
             </div>
           </div>
 
           <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-            {/* 테이블 헤더 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 40px', backgroundColor: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
+            {/* 테이블 헤더 (스크린샷 4) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 1fr 1fr', backgroundColor: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
+              <div></div>
               <div>제품</div>
               <div>현재고</div>
               <div>{theme.label} <span style={{ color: '#ff4d4f' }}>*</span></div>
-              <div></div>
             </div>
 
             {/* 테이블 바디 */}
@@ -1313,7 +1604,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                 <i className="fa-solid fa-plus" style={{ color: '#94a3b8', marginRight: '8px' }}></i>
                 <input
                   type="text"
-                  placeholder="제품 검색 (이름, SKU, 바코드)"
+                  placeholder="제품 검색"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -1324,13 +1615,12 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                 />
               </div>
 
-              {/* 검색 드롭다운 결과창 */}
-              {isDropdownOpen && searchQuery !== '' && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '0 0 8px 8px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', zIndex: 10, maxHeight: '200px', overflowY: 'auto' }}>
-                  {availableItems.length === 0 ? (
-                    <div style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>검색 결과가 없거나 이미 테이블에 추가되었습니다.</div>
-                  ) : (
-                    availableItems.map(item => (
+              {/* 검색 드롭다운 결과창 (스크린샷 4 하단 + 제품 추가 모달 버튼 연동) */}
+              {isDropdownOpen && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '0 0 8px 8px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12)', zIndex: 10, maxHeight: '240px', overflowY: 'auto' }}>
+                  {availableItems
+                    .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.sku.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map(item => (
                       <div
                         key={item.id}
                         onClick={() => handleAddItem(item)}
@@ -1339,20 +1629,43 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                       >
                         <div>
                           <strong style={{ display: 'block', fontSize: '13px', color: '#1e293b' }}>{item.name}</strong>
-                          <span style={{ fontSize: '11px', color: '#64748b' }}>{item.sku}</span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>{item.category || '기본'} / {item.brand || '기본'}</span>
                         </div>
                         <span style={{ fontSize: '12px', fontWeight: 600, color: theme.color }}>재고 {item.total_quantity}개</span>
                       </div>
-                    ))
-                  )}
+                    ))}
+
+                  {/* 드롭다운 맨 아래 파란색 + 제품 추가 버튼 (스크린샷 4 제품 추가 모달 연결) */}
+                  <div
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setShowProductModal(true);
+                    }}
+                    style={{
+                      padding: '12px 16px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      color: '#3b82f6',
+                      borderTop: '1px solid #f1f5f9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      backgroundColor: '#ffffff'
+                    }}
+                    className="search-item-hover"
+                  >
+                    <i className="fa-solid fa-plus"></i> 제품 추가
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* 테이블 품목 리스트 영역 */}
-            <div style={{ minHeight: '100px', backgroundColor: '#ffffff' }}>
+            {/* 테이블 품목 리스트 영역 (스크린샷 4 x 삭제 아이콘 & 카테고리/브랜드 라인) */}
+            <div style={{ minHeight: '80px', backgroundColor: '#ffffff' }}>
               {selectedList.length === 0 ? (
-                <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                <div style={{ padding: '30px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
                   {theme.title}할 제품을 검색하여 목록에 추가해 주세요.
                 </div>
               ) : (
@@ -1362,7 +1675,19 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                       <strong style={{ display: 'block', fontSize: '13px', color: '#1e293b' }}>{row.item.name}</strong>
                       <span style={{ fontSize: '11px', color: '#64748b' }}>{row.item.sku}</span>
                     </div>
-                    <div style={{ fontSize: '13px', color: '#475569' }}>{row.item.total_quantity} 개</div>
+                    {/* 현재고: 선택된 위치(warehouse)의 재고 수량을 실시간 표시 */}
+                    <div style={{ fontSize: '13px' }}>
+                      {warehouse && warehouse !== '선택하세요' ? (
+                        <span>
+                          <span style={{ color: '#3b82f6', fontWeight: 700 }}>
+                            {row.item.locations?.[warehouse] ?? 0}
+                          </span>
+                          <span style={{ color: '#94a3b8', fontSize: '11px', marginLeft: '2px' }}>개 ({warehouse})</span>
+                        </span>
+                      ) : (
+                        <span style={{ color: '#475569' }}>{row.item.total_quantity} 개</span>
+                      )}
+                    </div>
                     <div>
                       <input
                         type="number"

@@ -15,6 +15,7 @@ import StockMovementForm from '@/components/StockMovementForm';
 import HistoryView from '@/components/HistoryView';
 import BarcodePrintView from '@/components/BarcodePrintView';
 import GenericPageView from '@/components/GenericPageView';
+import PartnerManagement from '@/components/PartnerManagement';
 import AuthModal from '@/components/AuthModal';
 import { getStoredItems, getStoredHistories, Item, StockHistory } from '@/lib/storage'; // 로컬 저장소 유틸리티 임포트 및 타입 추가
 
@@ -26,6 +27,13 @@ export default function Home() {
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   // 선택된 네비게이션 경로
   const [currentPath, setCurrentPath] = useState<string>('dashboard');
+
+  // 제품 목록에서 입출고 폼으로 이동 시 선택된 제품, 위치, 거래처 연동 상태 (사용자 요청 반영)
+  const [selectedMovementItem, setSelectedMovementItem] = useState<Item | null>(null);
+  const [selectedMovementLocation, setSelectedMovementLocation] = useState<string | null>(null);
+  const [selectedMovementPartner, setSelectedMovementPartner] = useState<string | null>(null);
+  // 입출고 폼을 강제 재마운트하기 위한 key (값이 바뀔 때마다 컴포넌트가 초기화됨)
+  const [movementKey, setMovementKey] = useState<number>(0);
 
   // 실시간 제품 목록 상태
   const [items, setItems] = useState<Item[]>([]);
@@ -99,6 +107,14 @@ export default function Home() {
         onOpenAuthModal={() => setAuthModalOpen(true)}
         currentPath={currentPath}
         onNavigate={(path) => {
+          // 사이드바 직접 접근 시 이전의 movement 컨텍스트(item/loc/partner) 전체 초기화
+          setSelectedMovementItem(null);
+          setSelectedMovementLocation(null);
+          setSelectedMovementPartner(null);
+          // stock 관련 경로로 이동 시 movementKey 갱신 → 폼 강제 재마운트 (이전 위치/거래처 상태 완전 초기화)
+          if (path.startsWith('stock-')) {
+            setMovementKey(Date.now());
+          }
           setCurrentPath(path);
           setSidebarOpen(false);
         }}
@@ -111,7 +127,7 @@ export default function Home() {
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         />
 
-        <main className="main-content">
+        <main className="main-content page-content-fade">
           {/* 라우팅 조건 분기 */}
           {currentPath === 'dashboard' || currentPath === 'reports-dashboard' ? (
             <div className="dashboard-container">
@@ -247,7 +263,17 @@ export default function Home() {
               </div>
             </div>
           ) : currentPath === 'items' ? (
-            <ItemList onAddNew={() => setCurrentPath('add-item')} />
+            <ItemList
+              onAddNew={() => setCurrentPath('add-item')}
+              onNavigate={(path, item, loc, partner) => {
+                // 선택된 제품/위치/거래처를 저장하고, movementKey를 갱신해 폼을 완전히 새로 마운트
+                setSelectedMovementItem(item || null);
+                setSelectedMovementLocation(loc || null);
+                setSelectedMovementPartner(partner || null);
+                setMovementKey(Date.now());
+                setCurrentPath(path);
+              }}
+            />
           ) : currentPath === 'add-item' ? (
             <ProductForm
               onSuccess={() => {
@@ -257,33 +283,61 @@ export default function Home() {
             />
           ) : currentPath === 'stock-in' ? (
             <StockMovementForm
+              key={movementKey}
               type="IN"
+              initialItem={selectedMovementItem}
+              initialLocation={selectedMovementLocation}
+              initialPartner={selectedMovementPartner}
               onSuccess={() => {
                 refreshData();
+                setSelectedMovementItem(null);
+                setSelectedMovementLocation(null);
+                setSelectedMovementPartner(null);
                 setCurrentPath('history');
               }}
             />
           ) : currentPath === 'stock-out' ? (
             <StockMovementForm
+              key={movementKey}
               type="OUT"
+              initialItem={selectedMovementItem}
+              initialLocation={selectedMovementLocation}
+              initialPartner={selectedMovementPartner}
               onSuccess={() => {
                 refreshData();
+                setSelectedMovementItem(null);
+                setSelectedMovementLocation(null);
+                setSelectedMovementPartner(null);
                 setCurrentPath('history');
               }}
             />
           ) : currentPath === 'stock-adjust' ? (
             <StockMovementForm
+              key={movementKey}
               type="ADJUST"
+              initialItem={selectedMovementItem}
+              initialLocation={selectedMovementLocation}
+              initialPartner={selectedMovementPartner}
               onSuccess={() => {
                 refreshData();
+                setSelectedMovementItem(null);
+                setSelectedMovementLocation(null);
+                setSelectedMovementPartner(null);
                 setCurrentPath('history');
               }}
             />
           ) : currentPath === 'stock-move' ? (
             <StockMovementForm
+              key={movementKey}
               type="MOVE"
+              initialItem={selectedMovementItem}
+              initialLocation={selectedMovementLocation}
+              initialPartner={selectedMovementPartner}
               onSuccess={() => {
                 refreshData();
+                setSelectedMovementItem(null);
+                setSelectedMovementLocation(null);
+                setSelectedMovementPartner(null);
                 setCurrentPath('history');
               }}
             />
@@ -291,6 +345,8 @@ export default function Home() {
             <HistoryView />
           ) : currentPath === 'barcode-item' || currentPath === 'barcode-bundle' ? (
             <BarcodePrintView />
+          ) : currentPath === 'partners' || currentPath === 'partner-setting' ? (
+            <PartnerManagement />
           ) : (
             /* 기타 신규 서브폴더 페이지 표출 */
             <GenericPageView

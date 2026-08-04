@@ -1041,7 +1041,7 @@ button, input, select, textarea {
    ========================================================================= */
 
 .stock-in-form-container {
-  animation: fadeIn 0.2s ease-in-out;
+  animation: fadeInPure 0.18s ease-out forwards;
 }
 
 .search-item-hover:hover {
@@ -1094,6 +1094,21 @@ button, input, select, textarea {
   scroll-snap-align: start;
 }
 
+/* 위치 이동(흔들림) 없이 은은하게 그라데이션되듯 스르륵 나타나는 페이드인 애니메이션 */
+@keyframes fadeInPure {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
 
-
+.fade-in-pure {
+  animation: fadeInPure 0.25s ease-in-out forwards;
+}
+/* 페이지 콘텐츠 영역 전환 시 바로 나타나는 순수 페이드인 (이동 시 빴작거림 제거) */
+.page-content-fade {
+  animation: fadeInPure 0.15s ease-out forwards;
+}
 
