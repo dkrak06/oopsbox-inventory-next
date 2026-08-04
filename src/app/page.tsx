@@ -19,6 +19,12 @@ import PartnerManagement from '@/components/PartnerManagement';
 import LocationManagement from '@/components/LocationManagement';
 import MasterItemsManagement from '@/components/MasterItemsManagement';
 import BundleManagement from '@/components/BundleManagement';
+import OrderManagement from '@/components/OrderManagement';
+import FeatureManagement from '@/components/FeatureManagement';
+import ReportManagement from '@/components/ReportManagement';
+import AttributeManagement from '@/components/AttributeManagement';
+import PriceTemplateManagement from '@/components/PriceTemplateManagement';
+import SettingManagement from '@/components/SettingManagement';
 import AuthModal from '@/components/AuthModal';
 import { getStoredItems, getStoredHistories, Item, StockHistory } from '@/lib/storage'; // 로컬 저장소 유틸리티 임포트 및 타입 추가
 
@@ -31,12 +37,19 @@ export default function Home() {
   // 선택된 네비게이션 경로
   const [currentPath, setCurrentPath] = useState<string>('dashboard');
 
-  // 제품 목록에서 입출고 폼으로 이동 시 선택된 제품, 위치, 거래처 연동 상태 (사용자 요청 반영)
+  // 제품 목록에서 입출고 폼으로 이동 시 선택된 제품, 위치, 거래처 연동 상태
   const [selectedMovementItem, setSelectedMovementItem] = useState<Item | null>(null);
   const [selectedMovementLocation, setSelectedMovementLocation] = useState<string | null>(null);
   const [selectedMovementPartner, setSelectedMovementPartner] = useState<string | null>(null);
   // 입출고 폼을 강제 재마운트하기 위한 key (값이 바뀔 때마다 컴포넌트가 초기화됨)
   const [movementKey, setMovementKey] = useState<number>(0);
+  // 대기 중인 이동 정보 (제품 데이터가 먼저 세팅된 후 경로 변경 → key 갱신 순서 보장용)
+  const [pendingMovement, setPendingMovement] = useState<{
+    item: Item | null;
+    location: string | null;
+    partner: string | null;
+    path: string;
+  } | null>(null);
 
   // 실시간 제품 목록 상태
   const [items, setItems] = useState<Item[]>([]);
@@ -52,6 +65,18 @@ export default function Home() {
   useEffect(() => {
     refreshData();
   }, [currentPath]);
+
+  // pendingMovement가 세팅되면 → 제품 데이터를 state에 반영하고 경로 변경 후 key 갱신
+  // 이 순서를 보장해야 StockMovementForm이 올바른 initialItem을 가지고 마운트됨
+  useEffect(() => {
+    if (!pendingMovement) return;
+    setSelectedMovementItem(pendingMovement.item);
+    setSelectedMovementLocation(pendingMovement.location);
+    setSelectedMovementPartner(pendingMovement.partner);
+    setCurrentPath(pendingMovement.path);
+    setMovementKey(Date.now());
+    setPendingMovement(null);
+  }, [pendingMovement]);
 
   // 스크린샷 1,2,3 전 전체 메뉴 타이틀 동적 생성 매핑 테이블
   const getPageTitle = (path: string): string => {
@@ -269,12 +294,14 @@ export default function Home() {
             <ItemList
               onAddNew={() => setCurrentPath('add-item')}
               onNavigate={(path, item, loc, partner) => {
-                // 선택된 제품/위치/거래처를 저장하고, movementKey를 갱신해 폼을 완전히 새로 마운트
-                setSelectedMovementItem(item || null);
-                setSelectedMovementLocation(loc || null);
-                setSelectedMovementPartner(partner || null);
-                setMovementKey(Date.now());
-                setCurrentPath(path);
+                // 1단계: pendingMovement에 데이터를 담아두면
+                // 2단계: useEffect가 감지하여 item→state 저장 → 경로 이동 → key 갱신 순서로 처리
+                setPendingMovement({
+                  item: item || null,
+                  location: loc || null,
+                  partner: partner || null,
+                  path,
+                });
               }}
             />
           ) : currentPath === 'add-item' ? (
@@ -346,8 +373,10 @@ export default function Home() {
             />
           ) : currentPath === 'history' ? (
             <HistoryView />
-          ) : currentPath === 'barcode-item' || currentPath === 'barcode-bundle' ? (
-            <BarcodePrintView />
+          ) : currentPath === 'barcode-item' ? (
+            <BarcodePrintView isBundle={false} />
+          ) : currentPath === 'barcode-bundle' ? (
+            <BarcodePrintView isBundle={true} />
           ) : currentPath === 'partners' || currentPath === 'partner-setting' ? (
             <PartnerManagement />
           ) : currentPath === 'locations' || currentPath === 'locations-setting' ? (
@@ -356,6 +385,18 @@ export default function Home() {
             <MasterItemsManagement onAddNew={() => setCurrentPath('add-item')} />
           ) : currentPath === 'bundles' ? (
             <BundleManagement />
+          ) : ['buy', 'sell', 'returns', 'shipments'].includes(currentPath) ? (
+            <OrderManagement currentPath={currentPath} />
+          ) : ['low-stock', 'inventory-link', 'inventory-count'].includes(currentPath) ? (
+            <FeatureManagement currentPath={currentPath} />
+          ) : ['summary', 'past-qty', 'inventory-analysis', 'sales-analysis', 'custom-reports'].includes(currentPath) ? (
+            <ReportManagement currentPath={currentPath} />
+          ) : currentPath === 'attributes' ? (
+            <AttributeManagement />
+          ) : currentPath === 'price-templates' ? (
+            <PriceTemplateManagement />
+          ) : ['team-settings', 'members', 'notifications', 'order-settings', 'integrations', 'billing'].includes(currentPath) ? (
+            <SettingManagement currentPath={currentPath} />
           ) : (
             /* 기타 신규 서브폴더 페이지 표출 */
             <GenericPageView

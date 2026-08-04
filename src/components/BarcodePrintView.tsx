@@ -9,32 +9,48 @@
 import React, { useState, useEffect } from 'react';
 import { getStoredItems, Item } from '@/lib/storage';
 
-export default function BarcodePrintView() {
+interface BarcodePrintViewProps {
+  isBundle?: boolean;
+}
+
+export default function BarcodePrintView({ isBundle = false }: BarcodePrintViewProps) {
+  // 제품 목록 및 묶음제품 목록 상태 관리
   const [items, setItems] = useState<Item[]>([]);
+  const [bundles, setBundles] = useState<any[]>([]);
 
   useEffect(() => {
-    setItems(getStoredItems());
-  }, []);
+    if (isBundle) {
+      // 묶음제품 데이터 로드
+      const { getStoredBundles } = require('@/lib/storage');
+      setBundles(getStoredBundles());
+    } else {
+      // 일반 제품 데이터 로드
+      setItems(getStoredItems());
+    }
+  }, [isBundle]);
 
   const handlePrint = () => {
     window.print();
   };
+
+  const listData = isBundle ? bundles : items;
+  const titleText = isBundle ? '묶음제품 바코드 인쇄' : '제품 바코드 인쇄';
 
   return (
     <div className="boxhero-style-form" style={{ maxWidth: '1000px' }}>
       <header className="form-header">
         <span className="sub-title">바코드 관리</span>
         <div className="title-row">
-          <h1 className="main-title">제품 바코드 인쇄 ({items.length})</h1>
+          <h1 className="main-title">{titleText} ({listData.length})</h1>
           <button type="button" className="btn btn-primary" onClick={handlePrint}>
             <i className="fa-solid fa-print" style={{ marginRight: '6px' }}></i> 인쇄하기
           </button>
         </div>
       </header>
 
-      {items.length === 0 ? (
+      {listData.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-          바코드를 인쇄할 등록 제품이 없습니다. 먼저 제품을 새로 생성해주세요.
+          바코드를 인쇄할 등록 {isBundle ? '묶음제품' : '제품'}이 없습니다. 먼저 등록을 완료해 주세요.
         </div>
       ) : (
         <div
@@ -45,7 +61,7 @@ export default function BarcodePrintView() {
             marginTop: '16px',
           }}
         >
-          {items.map((item) => (
+          {listData.map((item) => (
             <div
               key={item.id}
               style={{
@@ -57,7 +73,7 @@ export default function BarcodePrintView() {
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
               }}
             >
-              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>{item.name}</div>
+              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px', color: '#1e293b' }}>{item.name}</div>
               <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>{item.sku}</div>
 
               {/* 바코드 비주얼 모의 바코드 표시 */}
@@ -80,8 +96,14 @@ export default function BarcodePrintView() {
               </div>
 
               <div style={{ marginTop: '12px', fontSize: '13px', color: '#334155' }}>
-                판매가: ₩{item.selling_price.toLocaleString()}
+                {isBundle ? '가치 단가' : '판매가'}: ₩{item.selling_price.toLocaleString()}
               </div>
+
+              {isBundle && item.components && (
+                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', borderTop: '1px solid #f1f5f9', paddingTop: '6px' }}>
+                  구성: {item.components.length}개 품목 조합
+                </div>
+              )}
             </div>
           ))}
         </div>

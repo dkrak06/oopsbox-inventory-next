@@ -466,3 +466,386 @@ export const calculateBundleAvailableQty = (bundle: BundleItem): number => {
   }
   return minPossible === Infinity ? 0 : minPossible;
 };
+
+// ==========================================
+// [신규 기능 추가를 위한 데이터 모델 및 저장소 유틸리티]
+// ==========================================
+
+// 1. 주문(구매/판매/반품/배송) 인터페이스
+export interface OrderProduct {
+  item_id: string;
+  item_name: string;
+  qty: number;
+  price: number;
+}
+
+export interface OrderItem {
+  id: string;
+  type: 'BUY' | 'SELL' | 'RETURN' | 'SHIPMENT'; // 구매, 판매, 반품, 배송
+  type_label: string;
+  status: 'DRAFT' | 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED'; // 임시 저장, 대기중, 부분완료, 완료, 취소됨
+  status_label: string;
+  partner: string; // 거래처명 (공급자 혹은 고객사)
+  products: OrderProduct[]; // 포함된 품목 리스트 (장바구니)
+  tracking_number?: string; // 배송용 송장 번호
+  created_at: string; // 등록 일시 (발주일/주문일)
+}
+
+// 2. 재고 공유 링크 인터페이스
+export interface ShareLink {
+  id: string;
+  name: string; // 링크 이름 (예: 외부 공지용 재고현황)
+  token: string; // 고유 인증 토큰
+  item_ids: string[]; // 공유 대상 품목 ID 리스트
+  is_active: boolean; // 활성화 여부
+  created_at: string;
+}
+
+// 3. 재고 조사 인터페이스
+export interface InventoryCount {
+  id: string;
+  title: string; // 조사 제목 (예: 2026년 8월 정기 재고조사)
+  status: 'PROGRESS' | 'COMPLETED'; // 진행중, 완료
+  created_at: string;
+  items: {
+    item_id: string;
+    item_name: string;
+    sku: string;
+    system_qty: number; // 전산 상의 재고 수량
+    actual_qty: number; // 실제 실사 수량
+  }[];
+}
+
+// 4. 커스텀 속성 인터페이스
+export interface CustomAttribute {
+  id: string;
+  name: string; // 속성명 (예: 색상, 사이즈, 재질)
+  values: string[]; // 속성에 포함될 옵션값 리스트 (예: Black, White, XL, L 등)
+  created_at: string;
+}
+
+// 5. 가격 템플릿 인터페이스
+export interface PriceTemplate {
+  id: string;
+  name: string; // 템플릿명 (예: 도매 공급가, VIP 우대가)
+  markup_percent: number; // 마크업 백분율 (소비자가 산정용)
+  discount_percent: number; // 할인 백분율
+  created_at: string;
+}
+
+// 로컬스토리지 키 설정
+const ORDERS_KEY = 'hb_orders';
+const SHARE_LINKS_KEY = 'hb_share_links';
+const INVENTORY_COUNTS_KEY = 'hb_inventory_counts';
+const ATTRIBUTES_KEY = 'hb_attributes';
+const PRICE_TEMPLATES_KEY = 'hb_price_templates';
+
+// [주문 관리] 데이터 조회 및 저장 함수
+export const getStoredOrders = (): OrderItem[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(ORDERS_KEY);
+    if (data) return JSON.parse(data);
+    
+    // 기본 샘플 주문 데이터 제공 (실제 BoxHero UI 구성에 부합하게 products 리스트 화함)
+    const initial: OrderItem[] = [
+      {
+        id: 'ORD-1',
+        type: 'BUY',
+        type_label: '구매',
+        status: 'PENDING',
+        status_label: '입고 대기',
+        partner: '(주)영웅유통',
+        products: [
+          { item_id: 'ITEM-1', item_name: '샘플 원자재 A', qty: 100, price: 5000 },
+          { item_id: 'ITEM-2', item_name: '보조 패킹재 B', qty: 50, price: 1200 }
+        ],
+        created_at: new Date().toISOString().split('T')[0] + ' 10:00:00'
+      },
+      {
+        id: 'ORD-2',
+        type: 'SELL',
+        type_label: '판매',
+        status: 'COMPLETED',
+        status_label: '출고 완료',
+        partner: 'DD',
+        products: [
+          { item_id: 'ITEM-3', item_name: '스타일리시 텀블러', qty: 10, price: 15000 }
+        ],
+        created_at: new Date().toISOString().split('T')[0] + ' 11:30:00'
+      }
+    ];
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(initial));
+    return initial;
+  } catch {
+    return [];
+  }
+};
+
+export const saveOrder = (newOrder: Omit<OrderItem, 'id' | 'created_at'>): OrderItem[] => {
+  const current = getStoredOrders();
+  const created: OrderItem = {
+    ...newOrder,
+    id: 'ORD-' + Date.now(),
+    created_at: new Date().toISOString().split('T')[0] // 실제 박스히어로는 날짜(YYYY-MM-DD) 형식으로 표시됨
+  };
+  const updated = [created, ...current];
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const updateOrderStatus = (
+  id: string, 
+  status: 'DRAFT' | 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED',
+  type: 'BUY' | 'SELL' | 'RETURN' | 'SHIPMENT'
+): OrderItem[] => {
+  const current = getStoredOrders();
+  
+  // 상태 레이블 매핑 (실제 박스히어로 주문/발주 상태 명칭 동기화)
+  const labels: { [key: string]: string } = {
+    DRAFT: '임시 저장',
+    PENDING: type === 'BUY' ? '입고 대기' : '출고 대기',
+    PARTIAL: type === 'BUY' ? '부분 입고' : '부분 출고',
+    COMPLETED: type === 'BUY' ? '입고 완료' : '출고 완료',
+    CANCELLED: '취소됨'
+  };
+
+  const updated = current.map(o => {
+    if (o.id === id) {
+      return { ...o, status, status_label: labels[status] };
+    }
+    return o;
+  });
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const updateOrderTracking = (id: string, tracking_number: string): OrderItem[] => {
+  const current = getStoredOrders();
+  const updated = current.map(o => {
+    if (o.id === id) {
+      return { ...o, tracking_number };
+    }
+    return o;
+  });
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const deleteOrder = (id: string): OrderItem[] => {
+  const current = getStoredOrders();
+  const updated = current.filter(o => o.id !== id);
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+// [재고 공유 링크] 데이터 조회 및 저장 함수
+export const getStoredShareLinks = (): ShareLink[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(SHARE_LINKS_KEY);
+    if (data) return JSON.parse(data);
+    
+    // 기본 샘플 데이터
+    const initial: ShareLink[] = [
+      {
+        id: 'SL-1',
+        name: '파트너사 재고 공유 현황',
+        token: 'token_' + Math.random().toString(36).substr(2, 9),
+        item_ids: [],
+        is_active: true,
+        created_at: new Date().toLocaleString()
+      }
+    ];
+    localStorage.setItem(SHARE_LINKS_KEY, JSON.stringify(initial));
+    return initial;
+  } catch {
+    return [];
+  }
+};
+
+export const saveShareLink = (newLink: Omit<ShareLink, 'id' | 'token' | 'created_at'>): ShareLink[] => {
+  const current = getStoredShareLinks();
+  const created: ShareLink = {
+    ...newLink,
+    id: 'SL-' + Date.now(),
+    token: 'token_' + Math.random().toString(36).substr(2, 9),
+    created_at: new Date().toLocaleString()
+  };
+  const updated = [created, ...current];
+  localStorage.setItem(SHARE_LINKS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const toggleShareLinkActive = (id: string): ShareLink[] => {
+  const current = getStoredShareLinks();
+  const updated = current.map(l => {
+    if (l.id === id) {
+      return { ...l, is_active: !l.is_active };
+    }
+    return l;
+  });
+  localStorage.setItem(SHARE_LINKS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const deleteShareLink = (id: string): ShareLink[] => {
+  const current = getStoredShareLinks();
+  const updated = current.filter(l => l.id !== id);
+  localStorage.setItem(SHARE_LINKS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+// [재고 조사] 데이터 조회 및 저장 함수
+export const getStoredInventoryCounts = (): InventoryCount[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(INVENTORY_COUNTS_KEY);
+    if (data) return JSON.parse(data);
+    return [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveInventoryCount = (newCount: Omit<InventoryCount, 'id' | 'created_at'>): InventoryCount[] => {
+  const current = getStoredInventoryCounts();
+  const created: InventoryCount = {
+    ...newCount,
+    id: 'CNT-' + Date.now(),
+    created_at: new Date().toLocaleString()
+  };
+  const updated = [created, ...current];
+  localStorage.setItem(INVENTORY_COUNTS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const updateInventoryCountStatus = (id: string, status: 'PROGRESS' | 'COMPLETED'): InventoryCount[] => {
+  const current = getStoredInventoryCounts();
+  const updated = current.map(c => {
+    if (c.id === id) {
+      return { ...c, status };
+    }
+    return c;
+  });
+  localStorage.setItem(INVENTORY_COUNTS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const deleteInventoryCount = (id: string): InventoryCount[] => {
+  const current = getStoredInventoryCounts();
+  const updated = current.filter(c => c.id !== id);
+  localStorage.setItem(INVENTORY_COUNTS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+// [커스텀 속성] 데이터 조회 및 저장 함수
+export const getStoredAttributes = (): CustomAttribute[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(ATTRIBUTES_KEY);
+    if (data) return JSON.parse(data);
+    
+    // 기본 샘플 데이터 (색상, 사이즈)
+    const initial: CustomAttribute[] = [
+      {
+        id: 'ATTR-1',
+        name: '색상',
+        values: ['Black', 'White', 'Navy', 'Red'],
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'ATTR-2',
+        name: '사이즈',
+        values: ['S', 'M', 'L', 'XL'],
+        created_at: new Date().toISOString()
+      }
+    ];
+    localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(initial));
+    return initial;
+  } catch {
+    return [];
+  }
+};
+
+export const saveAttribute = (newAttr: Omit<CustomAttribute, 'id' | 'created_at'>): CustomAttribute[] => {
+  const current = getStoredAttributes();
+  const created: CustomAttribute = {
+    ...newAttr,
+    id: 'ATTR-' + Date.now(),
+    created_at: new Date().toISOString()
+  };
+  const updated = [...current, created];
+  localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const updateAttribute = (id: string, values: string[]): CustomAttribute[] => {
+  const current = getStoredAttributes();
+  const updated = current.map(a => {
+    if (a.id === id) {
+      return { ...a, values };
+    }
+    return a;
+  });
+  localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const deleteAttribute = (id: string): CustomAttribute[] => {
+  const current = getStoredAttributes();
+  const updated = current.filter(a => a.id !== id);
+  localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+// [가격 템플릿] 데이터 조회 및 저장 함수
+export const getStoredPriceTemplates = (): PriceTemplate[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(PRICE_TEMPLATES_KEY);
+    if (data) return JSON.parse(data);
+    
+    // 기본 샘플 템플릿
+    const initial: PriceTemplate[] = [
+      {
+        id: 'PT-1',
+        name: '도매 특가 정책',
+        markup_percent: 0,
+        discount_percent: 15,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'PT-2',
+        name: '소비자가 마크업',
+        markup_percent: 30,
+        discount_percent: 0,
+        created_at: new Date().toISOString()
+      }
+    ];
+    localStorage.setItem(PRICE_TEMPLATES_KEY, JSON.stringify(initial));
+    return initial;
+  } catch {
+    return [];
+  }
+};
+
+export const savePriceTemplate = (newTemplate: Omit<PriceTemplate, 'id' | 'created_at'>): PriceTemplate[] => {
+  const current = getStoredPriceTemplates();
+  const created: PriceTemplate = {
+    ...newTemplate,
+    id: 'PT-' + Date.now(),
+    created_at: new Date().toISOString()
+  };
+  const updated = [...current, created];
+  localStorage.setItem(PRICE_TEMPLATES_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const deletePriceTemplate = (id: string): PriceTemplate[] => {
+  const current = getStoredPriceTemplates();
+  const updated = current.filter(t => t.id !== id);
+  localStorage.setItem(PRICE_TEMPLATES_KEY, JSON.stringify(updated));
+  return updated;
+};
+
