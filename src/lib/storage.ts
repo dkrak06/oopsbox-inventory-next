@@ -35,18 +35,81 @@ export interface StockHistory {
   created_at: string;
 }
 
+export interface LocationItem {
+  id: string;
+  name: string;
+  memo: string;
+  created_at: string;
+}
+
+export interface BundleItemComponent {
+  itemId: string;
+  itemName: string;
+  qty: number;
+}
+
+export interface BundleItem {
+  id: string;
+  sku: string;
+  name: string;
+  barcode: string;
+  purchase_price: number;
+  selling_price: number;
+  memo: string;
+  components: BundleItemComponent[];
+  created_at: string;
+}
+
 const ITEMS_KEY = 'hb_items';
 const HISTORY_KEY = 'hb_stock_history';
 const LOCATIONS_KEY = 'hb_locations';
+const LOCATION_OBJECTS_KEY = 'hb_location_objects';
+const BUNDLES_KEY = 'hb_bundles';
 
-// 0. 위치 목록 관리 함수 (전용 hb_locations 키)
-// 거래처명이 위치 목록에 섯잇는 문제를 근본 해결!
+// 0. 상세 위치 객체 목록 불러오기 함수
+export const getStoredLocationObjects = (): LocationItem[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(LOCATION_OBJECTS_KEY);
+    if (data) return JSON.parse(data);
+    
+    // 기본 샘플 데이터 (기본 위치, DD, FFF)
+    const initial: LocationItem[] = [
+      {
+        id: 'LOC-1',
+        name: '기본 위치',
+        memo: '',
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'LOC-2',
+        name: 'DD',
+        memo: 'DD',
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'LOC-3',
+        name: 'FFF',
+        memo: 'FFF',
+        created_at: new Date().toISOString(),
+      },
+    ];
+    localStorage.setItem(LOCATION_OBJECTS_KEY, JSON.stringify(initial));
+    localStorage.setItem(LOCATIONS_KEY, JSON.stringify(initial.map(l => l.name)));
+    return initial;
+  } catch (error) {
+    return [];
+  }
+};
+
+// 위치 이름 목록 불러오기 함수 (기존 연동 하위 호환)
 export const getStoredLocations = (): string[] => {
   if (typeof window === 'undefined') return ['기본 위치'];
   try {
+    const list = getStoredLocationObjects();
+    if (list.length > 0) return list.map(l => l.name);
     const data = localStorage.getItem(LOCATIONS_KEY);
     const parsed: string[] = data ? JSON.parse(data) : [];
-    // 항상 '기본 위치'는 목록의 첫 번째로
     if (!parsed.includes('기본 위치')) parsed.unshift('기본 위치');
     return parsed;
   } catch {
@@ -54,13 +117,62 @@ export const getStoredLocations = (): string[] => {
   }
 };
 
+// 위치 이름 단일 저장 함수 (입출고 시 신규 생성)
 export const saveLocationName = (locationName: string): void => {
   if (!locationName || locationName === '기본 위치') return;
-  const current = getStoredLocations();
-  if (!current.includes(locationName)) {
-    const updated = [...current, locationName];
-    localStorage.setItem(LOCATIONS_KEY, JSON.stringify(updated));
+  const currentObjects = getStoredLocationObjects();
+  if (!currentObjects.some(l => l.name === locationName)) {
+    saveLocationObject({ name: locationName, memo: locationName });
   }
+};
+
+// 새 위치 등록 함수
+export const saveLocationObject = (newLoc: { name: string; memo: string }): LocationItem[] => {
+  const current = getStoredLocationObjects();
+  const created: LocationItem = {
+    id: 'LOC-' + Date.now(),
+    name: newLoc.name,
+    memo: newLoc.memo,
+    created_at: new Date().toISOString(),
+  };
+  const updated = [...current, created];
+  localStorage.setItem(LOCATION_OBJECTS_KEY, JSON.stringify(updated));
+  localStorage.setItem(LOCATIONS_KEY, JSON.stringify(updated.map(l => l.name)));
+  return updated;
+};
+
+// 위치 수정 함수
+export const updateLocationObject = (id: string, updatedFields: { name: string; memo: string }): LocationItem[] => {
+  const current = getStoredLocationObjects();
+  const updated = current.map(l => {
+    if (l.id === id) {
+      return { ...l, ...updatedFields };
+    }
+    return l;
+  });
+  localStorage.setItem(LOCATION_OBJECTS_KEY, JSON.stringify(updated));
+  localStorage.setItem(LOCATIONS_KEY, JSON.stringify(updated.map(l => l.name)));
+  return updated;
+};
+
+// 위치 삭제 함수
+export const deleteLocationObject = (id: string): LocationItem[] => {
+  const current = getStoredLocationObjects();
+  const updated = current.filter(l => l.id !== id);
+  localStorage.setItem(LOCATION_OBJECTS_KEY, JSON.stringify(updated));
+  localStorage.setItem(LOCATIONS_KEY, JSON.stringify(updated.map(l => l.name)));
+  return updated;
+};
+
+// 위치별 전체 수량 합산 계산 함수
+export const getLocationTotalStock = (locationName: string): number => {
+  const items = getStoredItems();
+  return items.reduce((sum, item) => {
+    if (item.locations && item.locations[locationName] !== undefined) {
+      return sum + item.locations[locationName];
+    }
+    return sum;
+  }, 0);
 };
 
 // 1. 전체 제품 목록 불러오기 함수
@@ -302,4 +414,55 @@ export const updatePartnerObject = (id: string, updatedFields: Omit<PartnerItem,
   localStorage.setItem(PARTNERS_KEY, JSON.stringify(names));
   
   return updated;
+};
+
+// 12. 전체 묶음제품 목록 불러오기 함수
+export const getStoredBundles = (): BundleItem[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(BUNDLES_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    return [];
+  }
+};
+
+// 13. 새 묶음제품 저장하기 함수
+export const saveBundle = (newBundle: Omit<BundleItem, 'id' | 'created_at'>): BundleItem[] => {
+  const current = getStoredBundles();
+  const created: BundleItem = {
+    ...newBundle,
+    id: 'BUNDLE-' + Date.now(),
+    created_at: new Date().toISOString(),
+  };
+  const updated = [created, ...current];
+  localStorage.setItem(BUNDLES_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+// 14. 묶음제품 삭제 함수
+export const deleteBundle = (id: string): BundleItem[] => {
+  const current = getStoredBundles();
+  const updated = current.filter(b => b.id !== id);
+  localStorage.setItem(BUNDLES_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+// 15. 묶음 가능 수량 산출 함수 (구성 단품들의 최소 보유 재고 기반)
+export const calculateBundleAvailableQty = (bundle: BundleItem): number => {
+  if (!bundle.components || bundle.components.length === 0) return 0;
+  const items = getStoredItems();
+  
+  let minPossible = Infinity;
+  for (const comp of bundle.components) {
+    const foundItem = items.find(i => i.id === comp.itemId);
+    if (!foundItem || comp.qty <= 0) {
+      return 0;
+    }
+    const possibleForComp = Math.floor(foundItem.total_quantity / comp.qty);
+    if (possibleForComp < minPossible) {
+      minPossible = possibleForComp;
+    }
+  }
+  return minPossible === Infinity ? 0 : minPossible;
 };

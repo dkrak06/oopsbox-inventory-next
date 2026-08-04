@@ -16,6 +16,9 @@ import HistoryView from '@/components/HistoryView';
 import BarcodePrintView from '@/components/BarcodePrintView';
 import GenericPageView from '@/components/GenericPageView';
 import PartnerManagement from '@/components/PartnerManagement';
+import LocationManagement from '@/components/LocationManagement';
+import MasterItemsManagement from '@/components/MasterItemsManagement';
+import BundleManagement from '@/components/BundleManagement';
 import AuthModal from '@/components/AuthModal';
 import { getStoredItems, getStoredHistories, Item, StockHistory } from '@/lib/storage'; // 로컬 저장소 유틸리티 임포트 및 타입 추가
 
@@ -347,6 +350,12 @@ export default function Home() {
             <BarcodePrintView />
           ) : currentPath === 'partners' || currentPath === 'partner-setting' ? (
             <PartnerManagement />
+          ) : currentPath === 'locations' || currentPath === 'locations-setting' ? (
+            <LocationManagement />
+          ) : currentPath === 'master-items' ? (
+            <MasterItemsManagement onAddNew={() => setCurrentPath('add-item')} />
+          ) : currentPath === 'bundles' ? (
+            <BundleManagement />
           ) : (
             /* 기타 신규 서브폴더 페이지 표출 */
             <GenericPageView
