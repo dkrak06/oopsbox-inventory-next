@@ -150,13 +150,6 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [showTimePicker, showAmPmDropdown, showHourDropdown, showMinuteDropdown, showCalendar]);
 
-  // 달력 팝업이 새로 열릴 때 자동으로 현재 시각으로 초기화하는 이펙트
-  useEffect(() => {
-    if (showCalendar) {
-      syncTimeToCurrent();
-    }
-  }, [showCalendar]);
-
   // 날짜/시간 상태가 변경될 때마다 화면에 표출할 포맷팅된 날짜 문자열 계산
   useEffect(() => {
     if (useCurrentDate) {
@@ -190,10 +183,79 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
     setTimeMinute(today.getMinutes());
   };
 
-  // 달력 모달(showCalendar)이 열릴 때 기존 스크롤바 강제 억제 제거 (원래 상태 복원)
+  // 달력 모달 휠 타겟별 시/분 정확한 분기 및 바탕 스크롤 완전 방어 이펙트
   useEffect(() => {
-    // 스크롤바 지움 현상 제거 완료
-  }, [showCalendar]);
+    const calendarEl = calendarContainerRef.current;
+    if (!showCalendar || !calendarEl) return;
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      // 바탕화면 스크롤 전파 차단
+      e.stopPropagation();
+
+      const target = e.target as HTMLElement;
+
+      // 1) 개별 '시간 입력' 팝업 내부 휠 -> 시(Hour) 조절
+      if (hourDropdownRef.current && hourDropdownRef.current.contains(target)) {
+        e.preventDefault();
+        if (e.deltaY > 0) setTimeHour(prev => (prev === 12 ? 1 : prev + 1));
+        else setTimeHour(prev => (prev === 1 ? 12 : prev - 1));
+        setUseCurrentDate(false);
+        return;
+      }
+
+      // 2) 개별 '분 입력' 팝업 내부 휠 -> 분(Minute) 조절
+      if (minuteDropdownRef.current && minuteDropdownRef.current.contains(target)) {
+        e.preventDefault();
+        if (e.deltaY > 0) setTimeMinute(prev => (prev === 59 ? 0 : prev + 1));
+        else setTimeMinute(prev => (prev === 0 ? 59 : prev - 1));
+        setUseCurrentDate(false);
+        return;
+      }
+
+      // 3) 3열 통합 시계 피커 팝업 내부 휠 -> 타겟 위치별 시/분 구분 조절
+      if (timePickerRef.current && timePickerRef.current.contains(target)) {
+        e.preventDefault();
+        // 2열 '시' 영역
+        if (target.closest('.hour-picker-col')) {
+          if (e.deltaY > 0) setTimeHour(prev => (prev === 12 ? 1 : prev + 1));
+          else setTimeHour(prev => (prev === 1 ? 12 : prev - 1));
+        } 
+        // 3열 '분' 영역 (기본값)
+        else {
+          if (e.deltaY > 0) setTimeMinute(prev => (prev === 59 ? 0 : prev + 1));
+          else setTimeMinute(prev => (prev === 0 ? 59 : prev - 1));
+        }
+        setUseCurrentDate(false);
+        return;
+      }
+
+      // 4) [오전 10 30] 메인 사각형 박스의 시/분 텍스트 영역 직상단 휠 조절
+      if (target.closest('.hour-trigger')) {
+        e.preventDefault();
+        if (e.deltaY > 0) setTimeHour(prev => (prev === 12 ? 1 : prev + 1));
+        else setTimeHour(prev => (prev === 1 ? 12 : prev - 1));
+        setUseCurrentDate(false);
+        return;
+      }
+
+      if (target.closest('.minute-trigger')) {
+        e.preventDefault();
+        if (e.deltaY > 0) setTimeMinute(prev => (prev === 59 ? 0 : prev + 1));
+        else setTimeMinute(prev => (prev === 0 ? 59 : prev - 1));
+        setUseCurrentDate(false);
+        return;
+      }
+
+      // 5) 기타 달력 모달 빈 공간 휠 전파 무력화
+      e.preventDefault();
+    };
+
+    calendarEl.addEventListener('wheel', handleNativeWheel, { passive: false });
+
+    return () => {
+      calendarEl.removeEventListener('wheel', handleNativeWheel);
+    };
+  }, [showCalendar, showTimePicker, showHourDropdown, showMinuteDropdown]);
 
   // 테이블에 중복 추가되지 않은 검색 키워드 매칭 제품 필터링
   const availableItems = dbItems.filter(item => {
@@ -331,7 +393,22 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
   };
 
   const handleSelectToday = () => {
-    syncTimeToCurrent();
+    const today = new Date();
+    setSelectedYear(today.getFullYear());
+    setSelectedMonth(today.getMonth());
+    setSelectedDay(today.getDate());
+    setCurrentYear(today.getFullYear());
+    setCurrentMonth(today.getMonth());
+    setUseCurrentDate(false);
+  };
+
+  // 시간만 현재 시간으로 동기화하는 별도 처리 함수
+  const handleSyncCurrentTime = () => {
+    const today = new Date();
+    const currentHour24 = today.getHours();
+    setTimeAmPm(currentHour24 >= 12 ? '오후' : '오전');
+    setTimeHour(currentHour24 % 12 === 0 ? 12 : currentHour24 % 12);
+    setTimeMinute(today.getMinutes());
     setUseCurrentDate(false);
   };
 
@@ -459,7 +536,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                 <i className="fa-regular fa-calendar" style={{ color: '#64748b' }}></i>
               </div>
 
-              {/* 커스텀 달력 모달 레이어 */}
+              {/* 커스텀 달력 모달 레이어 (overscrollBehavior: 'contain' 속성 지정으로 바탕 화면 스크롤 완전 격리) */}
               {showCalendar && (
                 <div 
                   ref={calendarContainerRef}
@@ -474,6 +551,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                     width: '380px',
                     padding: '16px 20px',
                     zIndex: 100,
+                    overscrollBehavior: 'contain',
                   }}
                 >
                   {/* 달력 헤더 */}
@@ -555,6 +633,28 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                     
                     <span style={{ fontSize: '13px', color: '#475569', marginRight: 'auto', fontWeight: 700 }}>시간</span>
                     
+                    {/* 별도 신설된 [초기화(현재시간)] 동기화 버튼 */}
+                    <button
+                      type="button"
+                      onClick={handleSyncCurrentTime}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#3b82f6',
+                        backgroundColor: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        marginRight: '2px',
+                        transition: 'all 0.15s ease'
+                      }}
+                      className="search-item-hover"
+                      title="시/분을 현재 시각으로 초기화"
+                    >
+                      초기화(현재시간)
+                    </button>
+                    
                     {/* [오전 09 16] 테두리 사각형 인풋 박스 (ref={timeBoxRef} 연동으로 non-passive 휠 스크롤 100% 동결 차단) */}
                     <div 
                       ref={timeBoxRef}
@@ -573,7 +673,8 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                         height: '36px', 
                         justifyContent: 'space-between',
                         boxSizing: 'border-box',
-                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
+                        overscrollBehavior: 'contain'
                       }}
                     >
                       {/* 1. 오전/오후 텍스트 트리거 */}
@@ -651,6 +752,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
 
                       {/* 2. 시(Hour) 트리거 (마우스 휠 조절 지원 & 바탕 스크롤 차단) */}
                       <div
+                        className="hour-trigger search-item-hover"
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowHourDropdown(prev => !prev);
@@ -678,6 +780,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                       {showHourDropdown && (
                         <div 
                           ref={hourDropdownRef}
+                          onWheel={(e) => { e.preventDefault(); e.stopPropagation(); }}
                           style={{
                             position: 'absolute',
                             bottom: 'calc(100% + 6px)',
@@ -694,7 +797,9 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                             flexDirection: 'column',
                             alignItems: 'center',
                             gap: '4px',
-                            animation: 'fadeIn 0.15s ease-out'
+                            animation: 'fadeIn 0.15s ease-out',
+                            overscrollBehavior: 'contain',
+                            touchAction: 'none'
                           }}
                         >
                           <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>시간 입력</div>
@@ -710,7 +815,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                               else if (e.target.value === '') setTimeHour(1);
                               setUseCurrentDate(false);
                             }}
-                            onWheel={(e) => { e.stopPropagation(); handleHourWheel(e); }}
+                            onWheel={(e) => { e.preventDefault(); e.stopPropagation(); handleHourWheel(e); }}
                             style={{
                               width: '48px',
                               height: '32px',
@@ -746,6 +851,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                       
                       {/* 3. 분(Minute) 트리거 (마우스 휠 조절 지원 & 바탕 스크롤 차단) */}
                       <div
+                        className="minute-trigger search-item-hover"
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowMinuteDropdown(prev => !prev);
@@ -773,6 +879,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                       {showMinuteDropdown && (
                         <div 
                           ref={minuteDropdownRef}
+                          onWheel={(e) => { e.preventDefault(); e.stopPropagation(); }}
                           style={{
                             position: 'absolute',
                             bottom: 'calc(100% + 6px)',
@@ -789,7 +896,9 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                             flexDirection: 'column',
                             alignItems: 'center',
                             gap: '4px',
-                            animation: 'fadeIn 0.15s ease-out'
+                            animation: 'fadeIn 0.15s ease-out',
+                            overscrollBehavior: 'contain',
+                            touchAction: 'none'
                           }}
                         >
                           <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>분 입력</div>
@@ -805,7 +914,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                               else if (e.target.value === '') setTimeMinute(0);
                               setUseCurrentDate(false);
                             }}
-                            onWheel={(e) => { e.stopPropagation(); handleMinuteWheel(e); }}
+                            onWheel={(e) => { e.preventDefault(); e.stopPropagation(); handleMinuteWheel(e); }}
                             style={{
                               width: '48px',
                               height: '32px',
@@ -893,7 +1002,8 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
                           zIndex: 650, 
                           overflow: 'hidden',
                           boxSizing: 'border-box',
-                          animation: 'fadeIn 0.15s ease-out'
+                          animation: 'fadeIn 0.15s ease-out',
+                          overscrollBehavior: 'contain'
                         }}
                       >
                         {/* 1열: 오전 / 오후 / 완료 (3줄 고정 40px 배치) */}
@@ -984,6 +1094,7 @@ export default function StockMovementForm({ type, onSuccess }: StockMovementForm
 
                         {/* 2열: 시 */}
                         <div 
+                          className="hour-picker-col"
                           onWheel={handleHourWheel}
                           style={{ 
                             borderRight: '1px solid #f1f5f9',
