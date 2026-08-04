@@ -1606,9 +1606,9 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
             </div>
           </div>
 
-          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', position: 'relative' }}>
             {/* 테이블 헤더 (스크린샷 4) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 1fr 1fr', backgroundColor: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 1fr 1fr', backgroundColor: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b', borderRadius: '8px 8px 0 0' }}>
               <div></div>
               <div>제품</div>
               <div>현재고</div>
@@ -1632,9 +1632,9 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
                 />
               </div>
 
-              {/* 검색 드롭다운 결과창 (스크린샷 4 하단 + 제품 추가 모달 버튼 연동) */}
+              {/* 검색 드롭다운 결과창 (overflow: hidden 방해 없이 시원하게 잘림 없이 표시) */}
               {isDropdownOpen && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '0 0 8px 8px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12)', zIndex: 10, maxHeight: '240px', overflowY: 'auto' }}>
+                <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.18), 0 4px 8px -2px rgba(0, 0, 0, 0.08)', zIndex: 100, maxHeight: '320px', overflowY: 'auto' }}>
                   {availableItems
                     .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.sku.toLowerCase().includes(searchQuery.toLowerCase()))
                     .map(item => (
@@ -1723,7 +1723,7 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
             </div>
 
             {/* 테이블 요약 행 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#475569' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#475569', borderRadius: '0 0 8px 8px' }}>
               <span>{selectedList.length} 개 품목</span>
               <span>총 수량 {totalQtySum}</span>
             </div>
