@@ -389,7 +389,7 @@ export default function Home() {
             <MasterItemsManagement onAddNew={() => setCurrentPath('add-item')} />
           ) : currentPath === 'bundles' ? (
             <BundleManagement />
-          ) : ['buy', 'sell', 'returns', 'shipments'].includes(currentPath) ? (
+          ) : ['buy', 'buy-add', 'sell', 'sell-add', 'returns', 'shipments'].includes(currentPath) ? (
             <OrderManagement currentPath={currentPath} />
           ) : ['low-stock', 'inventory-link', 'inventory-count'].includes(currentPath) ? (
             <FeatureManagement currentPath={currentPath} />
