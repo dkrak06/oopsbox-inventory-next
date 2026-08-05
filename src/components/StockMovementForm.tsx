@@ -27,8 +27,8 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
   // 전체 마스터 제품 목록 상태
   const [dbItems, setDbItems] = useState<Item[]>([]);
   
-  // 위치 메타데이터 상태 (전달받은 initialLocation이 있으면 마운트 즉시 바인딩, 없으면 미선택 빈값)
-  const [warehouse, setWarehouse] = useState<string>(initialLocation || '');
+  // 위치 메타데이터 상태 (전달받은 initialLocation이 있으면 마운트 즉시 바인딩, 없으면 '선택하세요')
+  const [warehouse, setWarehouse] = useState<string>(initialLocation || '선택하세요');
   const [toWarehouse, setToWarehouse] = useState<string>('');
   const [partner, setPartner] = useState<string>(initialPartner || '선택하세요');
   
@@ -696,13 +696,13 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
                     backgroundColor: '#ffffff',
                     cursor: 'pointer',
                     fontSize: '14px',
-                    color: warehouse === '선택하세요' ? '#94a3b8' : '#1e293b',
+                    color: (!warehouse || warehouse === '선택하세요') ? '#94a3b8' : '#1e293b',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center'
                   }}
                 >
-                  <span>{warehouse}</span>
+                  <span>{warehouse || '선택하세요'}</span>
                   <i className={`fa-solid fa-chevron-${showLocationDropdown ? 'up' : 'down'}`} style={{ fontSize: '11px', color: '#94a3b8' }}></i>
                 </div>
 
