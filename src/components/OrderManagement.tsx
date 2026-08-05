@@ -1,7 +1,7 @@
 /**
  * [OrderManagement 컴포넌트]
- * 역할: 박스히어로 실제 발주서/판매서 풀 페이지 양식 및 시스템 공통 커스텀 달력 픽커를 100% 동기화합니다.
- * 흐름: 팝업 대신 공급자/고객, 가격템플릿, 통화, 제품선택, 주문번호, 박스히어로 커스텀 날짜/예정일 달력, 커스텀필드를 표출합니다.
+ * 역할: 박스히어로 실제 발주서/판매서 풀 페이지 양식 및 입출고와 100% 동일한 정통 커스텀 달력 픽커를 바인딩합니다.
+ * 흐름: 이미지 1 입출고 달력과 동일하게 지난달/다음달 흐림 렌더링, 파란 동그라미 선택 뱃지, '오늘' 하단 버튼을 지원합니다.
  */
 
 'use client';
@@ -52,9 +52,11 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
   const [autoExecuteImmediate, setAutoExecuteImmediate] = useState(false);
 
   // --------------------------------------------------------------------------
-  // 박스히어로 표준 커스텀 날짜 픽커 상태 및 달력 로직
+  // 이미지 1 입출고 화면과 100% 동일한 박스히어로 정통 커스텀 달력 픽커 시스템
   // --------------------------------------------------------------------------
-  const today = new Date();
+  const todayObj = new Date();
+  const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+  
   const [orderDateText, setOrderDateText] = useState<string>('현재');
   const [expectedDateText, setExpectedDateText] = useState<string>('');
 
@@ -63,10 +65,10 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
   const [showExpectedCalendar, setShowExpectedCalendar] = useState<boolean>(false);
 
   // 달력 년/월 상태
-  const [orderCalYear, setOrderCalYear] = useState<number>(today.getFullYear());
-  const [orderCalMonth, setOrderCalMonth] = useState<number>(today.getMonth());
-  const [expectedCalYear, setExpectedCalYear] = useState<number>(today.getFullYear());
-  const [expectedCalMonth, setExpectedCalMonth] = useState<number>(today.getMonth());
+  const [orderCalYear, setOrderCalYear] = useState<number>(todayObj.getFullYear());
+  const [orderCalMonth, setOrderCalMonth] = useState<number>(todayObj.getMonth());
+  const [expectedCalYear, setExpectedCalYear] = useState<number>(todayObj.getFullYear());
+  const [expectedCalMonth, setExpectedCalMonth] = useState<number>(todayObj.getMonth());
 
   const orderCalRef = useRef<HTMLDivElement>(null);
   const expectedCalRef = useRef<HTMLDivElement>(null);
@@ -86,18 +88,24 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
-  // 달력 그리드 계산 헬퍼 함수
-  const generateCalendarDays = (year: number, month: number) => {
+  // 이미지 1 입출고 달력 매트릭스 계산 (지난달/다음달 날짜 흐리게 표시 + 42개 셀 보장)
+  const getCalendarMatrix = (year: number, month: number) => {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const days = [];
-    for (let i = 0; i < firstDay; i++) {
-      days.push(null);
+    const prevMonthDays = new Date(year, month, 0).getDate();
+
+    const matrix = [];
+    for (let i = firstDay - 1; i >= 0; i--) {
+      matrix.push({ day: prevMonthDays - i, isCurrent: false });
     }
     for (let d = 1; d <= daysInMonth; d++) {
-      days.push(d);
+      matrix.push({ day: d, isCurrent: true });
     }
-    return days;
+    const remaining = 42 - matrix.length;
+    for (let d = 1; d <= remaining; d++) {
+      matrix.push({ day: d, isCurrent: false });
+    }
+    return matrix;
   };
 
   // 커스텀 필드 목록
@@ -265,7 +273,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
   const subtotalPrice = cart.reduce((sum, p) => sum + (p.quantity * p.unit_price), 0);
   const totalItemCount = cart.reduce((sum, p) => sum + p.quantity, 0);
 
-  // 저장 핸들러 (DRAFT 또는 PENDING/COMPLETED)
+  // 저장 핸들러
   const handleSaveOrder = (isDraft: boolean = false) => {
     if (cart.length === 0) {
       alert('최소 1개 이상의 제품을 선택해 주세요.');
@@ -278,9 +286,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
         ? 'COMPLETED' 
         : 'PENDING';
 
-    const saveDate = orderDateText === '현재' 
-      ? new Date().toISOString().split('T')[0] 
-      : orderDateText;
+    const saveDate = orderDateText === '현재' ? todayStr : orderDateText.split(' ')[0];
 
     const newOrder: OrderItem = {
       id: orderNumber || `ORD-${Date.now()}`,
@@ -332,8 +338,8 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
   // A. [서식 작성 전체 페이지 뷰] (히어로박스 스크린샷 3, 4 완전 일치 양식)
   // --------------------------------------------------------------------------
   if (showWriteForm) {
-    const orderDays = generateCalendarDays(orderCalYear, orderCalMonth);
-    const expectedDays = generateCalendarDays(expectedCalYear, expectedCalMonth);
+    const orderMatrix = getCalendarMatrix(orderCalYear, orderCalMonth);
+    const expectedMatrix = getCalendarMatrix(expectedCalYear, expectedCalMonth);
 
     return (
       <div style={{ maxWidth: '1100px', margin: '0 auto', fontFamily: 'Pretendard, sans-serif', paddingBottom: '80px', color: '#0f172a' }}>
@@ -547,7 +553,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
             </div>
           </div>
 
-          {/* 4. 주문 상세 설정 (주문번호, 박스히어로 특화 커스텀 날짜/예정일 달력) */}
+          {/* 4. 주문 상세 설정 (주문번호, 이미지 1과 100% 동일한 입출고 날짜 선택 달력 픽커) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
             
             {/* 주문 번호 */}
@@ -563,7 +569,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
               <span style={{ fontSize: '12px', color: '#94a3b8' }}>비워두면 자동으로 생성됩니다.</span>
             </div>
 
-            {/* 발주일 / 판매일 (박스히어로 공통 커스텀 날짜 선택기) */}
+            {/* 발주일 / 판매일 (이미지 1 입출고 날짜 선택기 100% 복제) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
               <label style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>{titleMap.dateLabel}</label>
               <div
@@ -586,7 +592,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
                 <i className="fa-regular fa-calendar" style={{ color: '#64748b' }}></i>
               </div>
 
-              {/* 발주일 박스히어로 달력 팝업 Layer */}
+              {/* 이미지 1 입출고 정통 커스텀 달력 Layer */}
               {showOrderCalendar && (
                 <div
                   ref={orderCalRef}
@@ -597,69 +603,83 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
                     backgroundColor: '#ffffff',
                     border: '1px solid #cbd5e1',
                     borderRadius: '12px',
-                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                    width: '340px',
+                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+                    width: '320px',
                     padding: '16px',
                     zIndex: 200,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <button type="button" onClick={() => { if (orderCalMonth === 0) { setOrderCalMonth(11); setOrderCalYear(y => y - 1); } else { setOrderCalMonth(m => m - 1); } }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b' }}>◀</button>
-                    <span style={{ fontWeight: 800, fontSize: '14px' }}>{orderCalYear}년 {orderCalMonth + 1}월</span>
-                    <button type="button" onClick={() => { if (orderCalMonth === 11) { setOrderCalMonth(0); setOrderCalYear(y => y + 1); } else { setOrderCalMonth(m => m + 1); } }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b' }}>▶</button>
+                  {/* 헤더 년/월 */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                    <button type="button" onClick={() => { if (orderCalMonth === 0) { setOrderCalMonth(11); setOrderCalYear(y => y - 1); } else { setOrderCalMonth(m => m - 1); } }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b', fontSize: '14px' }}>◀</button>
+                    <span style={{ fontWeight: 800, fontSize: '15px', color: '#0f172a' }}>{orderCalYear}년 {orderCalMonth + 1}월</span>
+                    <button type="button" onClick={() => { if (orderCalMonth === 11) { setOrderCalMonth(0); setOrderCalYear(y => y + 1); } else { setOrderCalMonth(m => m + 1); } }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b', fontSize: '14px' }}>▶</button>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
+                  {/* 요일 헤더 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px' }}>
                     <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', fontSize: '12px' }}>
-                    {orderDays.map((d, i) => (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          if (!d) return;
-                          const mStr = String(orderCalMonth + 1).padStart(2, '0');
-                          const dStr = String(d).padStart(2, '0');
-                          setOrderDateText(`${orderCalYear}-${mStr}-${dStr}`);
-                          setShowOrderCalendar(false);
-                        }}
-                        style={{
-                          padding: '8px 0',
-                          borderRadius: '6px',
-                          cursor: d ? 'pointer' : 'default',
-                          color: d ? '#0f172a' : 'transparent',
-                          backgroundColor: orderDateText === `${orderCalYear}-${String(orderCalMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}` ? '#eff6ff' : 'transparent',
-                          fontWeight: orderDateText.includes(String(d)) ? 700 : 400
-                        }}
-                        className={d ? 'search-item-hover' : ''}
-                      >
-                        {d}
-                      </div>
-                    ))}
+                  {/* 날짜 셀 42개 그리드 (이미지 1 원형 파란 뱃지 100% 동일) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center', fontSize: '13px' }}>
+                    {orderMatrix.map((item, i) => {
+                      const mStr = String(orderCalMonth + 1).padStart(2, '0');
+                      const dStr = String(item.day).padStart(2, '0');
+                      const dateVal = `${orderCalYear}-${mStr}-${dStr}`;
+                      const isSelected = orderDateText.startsWith(dateVal);
+
+                      return (
+                        <div
+                          key={i}
+                          onClick={() => {
+                            setOrderDateText(`${dateVal} 10:00`);
+                            setShowOrderCalendar(false);
+                          }}
+                          style={{
+                            height: '34px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <div style={{
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: isSelected ? '#3b82f6' : 'transparent',
+                            color: isSelected ? '#ffffff' : item.isCurrent ? '#0f172a' : '#cbd5e1',
+                            fontWeight: isSelected ? 800 : item.isCurrent ? 500 : 400
+                          }}>
+                            {item.day}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '12px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* 이미지 1 하단 '오늘' 버튼 */}
+                  <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '14px', paddingTop: '10px', display: 'flex', justifyContent: 'center' }}>
                     <button
                       type="button"
-                      onClick={() => { setOrderDateText('현재'); setShowOrderCalendar(false); }}
-                      style={{ border: 'none', background: '#eff6ff', color: '#3b82f6', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+                      onClick={() => {
+                        setOrderDateText(`${todayStr} 10:00`);
+                        setShowOrderCalendar(false);
+                      }}
+                      style={{ border: '1px solid #e2e8f0', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 700, padding: '6px 20px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', width: '100%' }}
                     >
-                      현재
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowOrderCalendar(false)}
-                      style={{ border: 'none', background: 'none', color: '#94a3b8', fontSize: '12px', cursor: 'pointer' }}
-                    >
-                      닫기
+                      오늘
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* 입고 예정일 / 출고 예정일 (박스히어로 공통 커스텀 날짜 선택기) */}
+            {/* 입고 예정일 / 출고 예정일 (이미지 1 입출고 날짜 선택기 100% 복제) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
               <label style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>{titleMap.expectedDateLabel}</label>
               <div
@@ -682,7 +702,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
                 <i className="fa-regular fa-calendar" style={{ color: '#64748b' }}></i>
               </div>
 
-              {/* 입고예정일 박스히어로 달력 팝업 Layer */}
+              {/* 이미지 1 입출고 정통 커스텀 달력 Layer */}
               {showExpectedCalendar && (
                 <div
                   ref={expectedCalRef}
@@ -693,62 +713,72 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
                     backgroundColor: '#ffffff',
                     border: '1px solid #cbd5e1',
                     borderRadius: '12px',
-                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                    width: '340px',
+                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+                    width: '320px',
                     padding: '16px',
                     zIndex: 200,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <button type="button" onClick={() => { if (expectedCalMonth === 0) { setExpectedCalMonth(11); setExpectedCalYear(y => y - 1); } else { setExpectedCalMonth(m => m - 1); } }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b' }}>◀</button>
-                    <span style={{ fontWeight: 800, fontSize: '14px' }}>{expectedCalYear}년 {expectedCalMonth + 1}월</span>
-                    <button type="button" onClick={() => { if (expectedCalMonth === 11) { setExpectedCalMonth(0); setExpectedCalYear(y => y + 1); } else { setExpectedCalMonth(m => m + 1); } }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b' }}>▶</button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                    <button type="button" onClick={() => { if (expectedCalMonth === 0) { setExpectedCalMonth(11); setExpectedCalYear(y => y - 1); } else { setExpectedCalMonth(m => m - 1); } }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b', fontSize: '14px' }}>◀</button>
+                    <span style={{ fontWeight: 800, fontSize: '15px', color: '#0f172a' }}>{expectedCalYear}년 {expectedCalMonth + 1}월</span>
+                    <button type="button" onClick={() => { if (expectedCalMonth === 11) { setExpectedCalMonth(0); setExpectedCalYear(y => y + 1); } else { setExpectedCalMonth(m => m + 1); } }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b', fontSize: '14px' }}>▶</button>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px' }}>
                     <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', fontSize: '12px' }}>
-                    {expectedDays.map((d, i) => (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          if (!d) return;
-                          const mStr = String(expectedCalMonth + 1).padStart(2, '0');
-                          const dStr = String(d).padStart(2, '0');
-                          setExpectedDateText(`${expectedCalYear}-${mStr}-${dStr}`);
-                          setShowExpectedCalendar(false);
-                        }}
-                        style={{
-                          padding: '8px 0',
-                          borderRadius: '6px',
-                          cursor: d ? 'pointer' : 'default',
-                          color: d ? '#0f172a' : 'transparent',
-                          backgroundColor: expectedDateText === `${expectedCalYear}-${String(expectedCalMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}` ? '#eff6ff' : 'transparent',
-                          fontWeight: expectedDateText.includes(String(d)) ? 700 : 400
-                        }}
-                        className={d ? 'search-item-hover' : ''}
-                      >
-                        {d}
-                      </div>
-                    ))}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center', fontSize: '13px' }}>
+                    {expectedMatrix.map((item, i) => {
+                      const mStr = String(expectedCalMonth + 1).padStart(2, '0');
+                      const dStr = String(item.day).padStart(2, '0');
+                      const dateVal = `${expectedCalYear}-${mStr}-${dStr}`;
+                      const isSelected = expectedDateText.startsWith(dateVal);
+
+                      return (
+                        <div
+                          key={i}
+                          onClick={() => {
+                            setExpectedDateText(dateVal);
+                            setShowExpectedCalendar(false);
+                          }}
+                          style={{
+                            height: '34px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <div style={{
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: isSelected ? '#3b82f6' : 'transparent',
+                            color: isSelected ? '#ffffff' : item.isCurrent ? '#0f172a' : '#cbd5e1',
+                            fontWeight: isSelected ? 800 : item.isCurrent ? 500 : 400
+                          }}>
+                            {item.day}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '12px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '14px', paddingTop: '10px', display: 'flex', justifyContent: 'center' }}>
                     <button
                       type="button"
-                      onClick={() => { setExpectedDateText(''); setShowExpectedCalendar(false); }}
-                      style={{ border: 'none', background: '#f1f5f9', color: '#64748b', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+                      onClick={() => {
+                        setExpectedDateText(todayStr);
+                        setShowExpectedCalendar(false);
+                      }}
+                      style={{ border: '1px solid #e2e8f0', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 700, padding: '6px 20px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', width: '100%' }}
                     >
-                      초기화
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowExpectedCalendar(false)}
-                      style={{ border: 'none', background: 'none', color: '#94a3b8', fontSize: '12px', cursor: 'pointer' }}
-                    >
-                      닫기
+                      오늘
                     </button>
                   </div>
                 </div>
@@ -958,7 +988,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
                     <td style={{ padding: '14px 16px', color: '#334155' }}>{order.partner_name}</td>
                     <td style={{ padding: '14px 16px', color: '#1e293b' }}>{summaryText}</td>
                     <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>{order.total_quantity} 개</td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: '#3b82f6' }}>₩{order.total_amount.toLocaleString()} 원</td>
+                    <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight 700, color: '#3b82f6' }}>₩{order.total_amount.toLocaleString()} 원</td>
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                         {order.status === 'PENDING' && (

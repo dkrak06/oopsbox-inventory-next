@@ -182,7 +182,7 @@ function CustomDatePicker({
             <span style={{ color: '#3b82f6' }}>토</span>
           </div>
 
-          {/* 일자 격자 */}
+          {/* 일자 격자 (이미지 1 파란 원형 선택 뱃지 100% 동일) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center' }}>
             {calendarCells.map((cell, idx) => {
               const cellDateStr = `${cell.year}-${String(cell.month + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`;
@@ -192,27 +192,39 @@ function CustomDatePicker({
                   key={idx}
                   onClick={() => handleSelectDay(cell)}
                   style={{
-                    padding: '8px 0',
-                    fontSize: '13px',
-                    borderRadius: '6px',
+                    height: '34px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     cursor: 'pointer',
-                    color: !cell.isCurrentMonth ? '#cbd5e1' : isSelected ? '#ffffff' : '#1e293b',
-                    backgroundColor: isSelected ? '#3b82f6' : 'transparent',
-                    fontWeight: isSelected ? 700 : 400,
                   }}
                 >
-                  {cell.day}
+                  <div
+                    style={{
+                      width: '30px',
+                      height: '30px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isSelected ? '#3b82f6' : 'transparent',
+                      color: isSelected ? '#ffffff' : !cell.isCurrentMonth ? '#cbd5e1' : '#1e293b',
+                      fontWeight: isSelected ? 800 : 400,
+                    }}
+                  >
+                    {cell.day}
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          {/* 오늘 선택 버튼 */}
-          <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #f1f5f9', textAlign: 'right' }}>
+          {/* 이미지 1 하단 오늘 선택 버튼 */}
+          <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
             <button
               type="button"
               onClick={handleSelectToday}
-              style={{ border: 'none', background: 'none', color: '#3b82f6', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+              style={{ border: 'none', background: 'none', color: '#3b82f6', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
             >
               오늘
             </button>
