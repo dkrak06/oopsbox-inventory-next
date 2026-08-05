@@ -37,6 +37,9 @@ export default function Home() {
   // 선택된 네비게이션 경로
   const [currentPath, setCurrentPath] = useState<string>('dashboard');
 
+  // 제품 목록에서 선택했던 최근 제품 기억 상태 (히어로박스 표준 UX 지원)
+  const [lastSelectedProduct, setLastSelectedProduct] = useState<Item | null>(null);
+
   // 제품 목록에서 입출고 폼으로 이동 시 선택된 제품, 위치, 거래처 연동 상태
   const [selectedMovementItem, setSelectedMovementItem] = useState<Item | null>(null);
   const [selectedMovementLocation, setSelectedMovementLocation] = useState<string | null>(null);
@@ -58,7 +61,8 @@ export default function Home() {
 
   // 제품 목록과 히스토리 데이터를 동시에 갱신하는 헬퍼 함수
   const refreshData = () => {
-    setItems(getStoredItems());
+    const loadedItems = getStoredItems();
+    setItems(loadedItems);
     setHistories(getStoredHistories());
   };
 
@@ -135,11 +139,10 @@ export default function Home() {
         onOpenAuthModal={() => setAuthModalOpen(true)}
         currentPath={currentPath}
         onNavigate={(path) => {
-          // 사이드바 직접 접근 시 이전의 movement 컨텍스트(item/loc/partner) 전체 초기화
+          // 사이드바 메뉴 직접 클릭 이동 시: 이전 제품/위치/거래처 상태를 100% 깨끗이 초기화!
           setSelectedMovementItem(null);
           setSelectedMovementLocation(null);
           setSelectedMovementPartner(null);
-          // stock 관련 경로로 이동 시 movementKey 갱신 → 폼 강제 재마운트 (이전 위치/거래처 상태 완전 초기화)
           if (path.startsWith('stock-')) {
             setMovementKey(Date.now());
           }
@@ -293,13 +296,13 @@ export default function Home() {
           ) : currentPath === 'items' ? (
             <ItemList
               onAddNew={() => setCurrentPath('add-item')}
+              onSelectProduct={(item) => setLastSelectedProduct(item)}
               onNavigate={(path, item, loc, partner) => {
-                // 1단계: pendingMovement에 데이터를 담아두면
-                // 2단계: useEffect가 감지하여 item→state 저장 → 경로 이동 → key 갱신 순서로 처리
+                const targetItem = item || lastSelectedProduct || (items.length > 0 ? items[0] : null);
                 setPendingMovement({
-                  item: item || null,
+                  item: targetItem,
                   location: loc || null,
-                  partner: partner || null,
+                  partner: partner || targetItem?.partner || null,
                   path,
                 });
               }}
@@ -310,6 +313,7 @@ export default function Home() {
                 refreshData();
                 setCurrentPath('items');
               }}
+              onEditAttributes={() => setCurrentPath('attributes')}
             />
           ) : currentPath === 'stock-in' ? (
             <StockMovementForm

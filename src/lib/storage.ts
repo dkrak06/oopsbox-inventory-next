@@ -18,7 +18,7 @@ export interface Item {
   total_quantity: number;
   created_at: string;
   updated_at: string;
-  partner?: string; // 주 거래처
+  partner?: string; // 거래처
   history_count?: number; // 거래 횟수
 }
 
@@ -180,7 +180,24 @@ export const getStoredItems = (): Item[] => {
   if (typeof window === 'undefined') return [];
   try {
     const data = localStorage.getItem(ITEMS_KEY);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    const items: Item[] = JSON.parse(data);
+
+    // 기존 데이터 자동 마이그레이션: 과거 더미 데이터로 저장된 '(주)영웅유통'을 빈 값('')으로 보정
+    let hasChanged = false;
+    const cleanedItems = items.map((item) => {
+      if (item.partner === '(주)영웅유통') {
+        hasChanged = true;
+        return { ...item, partner: '' };
+      }
+      return item;
+    });
+
+    if (hasChanged) {
+      localStorage.setItem(ITEMS_KEY, JSON.stringify(cleanedItems));
+    }
+
+    return cleanedItems;
   } catch (error) {
     console.error('제품 데이터 로드 실패:', error);
     return [];
@@ -197,7 +214,7 @@ export const saveItem = (newItem: Omit<Item, 'id' | 'created_at' | 'updated_at'>
     id: 'ITEM-' + Date.now(),
     created_at: now,
     updated_at: now,
-    partner: newItem.partner || '(주)영웅유통',
+    partner: newItem.partner || '',
     history_count: 0, // 신규 품목 등록 시 초기 거래 횟수는 0회로 초기화합니다. (기존 하드코딩값 3 수정)
   };
 
@@ -739,27 +756,42 @@ export const deleteInventoryCount = (id: string): InventoryCount[] => {
   return updated;
 };
 
+// [커스텀 속성 타입 정의]
+export type AttributeType = '텍스트' | '숫자' | '날짜' | '바코드' | '파일';
+export type AttributeMode = '고정' | '선택'; // 고정: 기본 표출 / 선택: 필요 시 추가 표출
+
+export interface CustomAttribute {
+  id: string;
+  name: string;
+  type: AttributeType;
+  mode: AttributeMode;
+  created_at: string;
+}
+
 // [커스텀 속성] 데이터 조회 및 저장 함수
 export const getStoredAttributes = (): CustomAttribute[] => {
   if (typeof window === 'undefined') return [];
   try {
     const data = localStorage.getItem(ATTRIBUTES_KEY);
-    if (data) return JSON.parse(data);
+    if (data) {
+      const parsed: CustomAttribute[] = JSON.parse(data);
+      // 기존 데이터 호환성 마이그레이션 (type, mode 기본값 부여)
+      return parsed.map(attr => ({
+        ...attr,
+        type: attr.type || '텍스트',
+        mode: attr.mode || (attr.name === '카테고리' || attr.name === '브랜드' ? '고정' : '선택')
+      }));
+    }
     
-    // 기본 샘플 데이터 (색상, 사이즈)
+    // 기본 샘플 데이터 (카테고리/브랜드는 '고정', 나머지는 '선택')
     const initial: CustomAttribute[] = [
-      {
-        id: 'ATTR-1',
-        name: '색상',
-        values: ['Black', 'White', 'Navy', 'Red'],
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 'ATTR-2',
-        name: '사이즈',
-        values: ['S', 'M', 'L', 'XL'],
-        created_at: new Date().toISOString()
-      }
+      { id: 'ATTR-1', name: '카테고리', type: '텍스트', mode: '고정', created_at: new Date().toISOString() },
+      { id: 'ATTR-2', name: '브랜드', type: '텍스트', mode: '고정', created_at: new Date().toISOString() },
+      { id: 'ATTR-3', name: '색상', type: '텍스트', mode: '선택', created_at: new Date().toISOString() },
+      { id: 'ATTR-4', name: '사이즈', type: '텍스트', mode: '선택', created_at: new Date().toISOString() },
+      { id: 'ATTR-5', name: '날짜', type: '날짜', mode: '선택', created_at: new Date().toISOString() },
+      { id: 'ATTR-6', name: '바코드', type: '바코드', mode: '선택', created_at: new Date().toISOString() },
+      { id: 'ATTR-7', name: '파일', type: '파일', mode: '선택', created_at: new Date().toISOString() }
     ];
     localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(initial));
     return initial;
@@ -768,7 +800,7 @@ export const getStoredAttributes = (): CustomAttribute[] => {
   }
 };
 
-export const saveAttribute = (newAttr: Omit<CustomAttribute, 'id' | 'created_at'>): CustomAttribute[] => {
+export const saveAttribute = (newAttr: { name: string; type: AttributeType; mode: AttributeMode }): CustomAttribute[] => {
   const current = getStoredAttributes();
   const created: CustomAttribute = {
     ...newAttr,
@@ -780,11 +812,11 @@ export const saveAttribute = (newAttr: Omit<CustomAttribute, 'id' | 'created_at'
   return updated;
 };
 
-export const updateAttribute = (id: string, values: string[]): CustomAttribute[] => {
+export const updateAttribute = (id: string, name: string, type: AttributeType, mode: AttributeMode): CustomAttribute[] => {
   const current = getStoredAttributes();
   const updated = current.map(a => {
     if (a.id === id) {
-      return { ...a, values };
+      return { ...a, name, type, mode };
     }
     return a;
   });
@@ -795,6 +827,11 @@ export const updateAttribute = (id: string, values: string[]): CustomAttribute[]
 export const deleteAttribute = (id: string): CustomAttribute[] => {
   const current = getStoredAttributes();
   const updated = current.filter(a => a.id !== id);
+  localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const saveAllAttributes = (updated: CustomAttribute[]): CustomAttribute[] => {
   localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(updated));
   return updated;
 };

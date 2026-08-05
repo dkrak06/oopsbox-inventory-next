@@ -15,9 +15,10 @@ import { getStoredItems, deleteItem, updateItem, Item } from '@/lib/storage';
 interface ItemListProps {
   onAddNew: () => void;
   onNavigate?: (path: string, item?: Item, loc?: string, partner?: string) => void;
+  onSelectProduct?: (item: Item) => void;
 }
 
-export default function ItemList({ onAddNew, onNavigate }: ItemListProps) {
+export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: ItemListProps) {
   // 제품 목록 상태
   const [items, setItems] = useState<Item[]>([]);
   // 선택된 제품 ID 상태
@@ -49,13 +50,10 @@ export default function ItemList({ onAddNew, onNavigate }: ItemListProps) {
   const [editItemSellingPrice, setEditItemSellingPrice] = useState<number | string>('');
   const [editItemPartner, setEditItemPartner] = useState<string>('');
 
-  // 마운트 시 저장소에서 제품 데이터 로드
+  // 마운트 시 저장소에서 제품 데이터 로드 (강제 고정 선택 제거)
   const loadData = () => {
     const loaded = getStoredItems();
     setItems(loaded);
-    if (loaded.length > 0 && !selectedItemId) {
-      setSelectedItemId(loaded[0].id);
-    }
   };
 
   useEffect(() => {
@@ -87,33 +85,46 @@ export default function ItemList({ onAddNew, onNavigate }: ItemListProps) {
     ])
   );
 
+  // 정렬 오름차순/내림차순 상태 (기본 ASC: 오름차순 가나다순)
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
+
   // 위치 필터링 및 검색어, 재고 보유 필터링 로직
-  const filteredItems = items.filter((item) => {
-    // 1. 검색어 필터
-    const matchesSearch =
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.barcode.includes(searchQuery);
+  const filteredItems = items
+    .filter((item) => {
+      // 1. 검색어 필터
+      const matchesSearch =
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.barcode.includes(searchQuery);
 
-    // 2. 재고 보유 필터
-    const matchesStock = inStockOnly ? item.total_quantity > 0 : true;
+      // 2. 재고 보유 필터
+      const matchesStock = inStockOnly ? item.total_quantity > 0 : true;
 
-    // 3. 위치 필터 (스크린샷 2)
-    let matchesLocation = true;
-    if (locationFilter !== 'all') {
-      matchesLocation = item.locations && item.locations[locationFilter] !== undefined
-        ? item.locations[locationFilter] > 0
-        : (locationFilter === '기본 위치' && item.total_quantity > 0);
-    }
+      // 3. 위치 필터 (스크린샷 2)
+      let matchesLocation = true;
+      if (locationFilter !== 'all') {
+        matchesLocation =
+          item.locations && item.locations[locationFilter] !== undefined
+            ? item.locations[locationFilter] > 0
+            : locationFilter === '기본 위치' && item.total_quantity > 0;
+      }
 
-    return matchesSearch && matchesStock && matchesLocation;
-  });
+      return matchesSearch && matchesStock && matchesLocation;
+    })
+    .sort((a, b) => {
+      // 오름차순(ASC: 가나다순/A-Z) vs 내림차순(DESC: 다나가순/Z-A) 정렬
+      if (sortOrder === 'ASC') {
+        return a.name.localeCompare(b.name, 'ko');
+      } else {
+        return b.name.localeCompare(a.name, 'ko');
+      }
+    });
 
   // 전체 총 재고 수량 계산
   const totalStockSum = filteredItems.reduce((acc, cur) => acc + cur.total_quantity, 0);
 
-  // 선택된 제품 객체 가져오기
-  const selectedItem = items.find((i) => i.id === selectedItemId) || (filteredItems.length > 0 ? filteredItems[0] : null);
+  // 선택된 제품 객체 가져오기 (유저가 선택하지 않았을 경우 null)
+  const selectedItem = items.find((i) => i.id === selectedItemId) || null;
 
   // 제품 수정 모달 오픈 핸들러
   const handleOpenProductEdit = (item: Item) => {
@@ -391,8 +402,27 @@ export default function ItemList({ onAddNew, onNavigate }: ItemListProps) {
               )}
             </div>
 
-            <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '16px' }} title="정렬">
-              <i className="fa-solid fa-arrow-down-up-across-line"></i>
+            {/* 오름차순/내림차순 정렬 토글 버튼 */}
+            <button
+              type="button"
+              onClick={() => setSortOrder((prev) => (prev === 'ASC' ? 'DESC' : 'ASC'))}
+              style={{
+                border: '1px solid #cbd5e1',
+                backgroundColor: '#ffffff',
+                borderRadius: '6px',
+                padding: '6px 10px',
+                cursor: 'pointer',
+                color: '#3b82f6',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              title={sortOrder === 'ASC' ? '현재 오름차순 (가나다순) - 클릭 시 내림차순 전환' : '현재 내림차순 (다나가순) - 클릭 시 오름차순 전환'}
+            >
+              <i className={`fa-solid ${sortOrder === 'ASC' ? 'fa-arrow-up-a-z' : 'fa-arrow-down-z-a'}`} style={{ fontSize: '13px' }}></i>
+              <span>{sortOrder === 'ASC' ? '오름차순' : '내림차순'}</span>
             </button>
           </div>
 
@@ -418,17 +448,21 @@ export default function ItemList({ onAddNew, onNavigate }: ItemListProps) {
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setSelectedItemId(item.id)}
+                    onClick={() => {
+                      setSelectedItemId(item.id);
+                      if (onSelectProduct) onSelectProduct(item);
+                    }}
                     style={{
-                      border: isSelected ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                      border: '2px solid',
+                      borderColor: isSelected ? '#3b82f6' : '#e2e8f0',
                       backgroundColor: isSelected ? '#eff6ff' : '#ffffff',
                       borderRadius: '8px',
-                      padding: '12px',
+                      padding: '11px 12px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       cursor: 'pointer',
-                      transition: 'all 0.15s'
+                      transition: 'background-color 0.15s, border-color 0.15s',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -592,10 +626,7 @@ export default function ItemList({ onAddNew, onNavigate }: ItemListProps) {
                     </div>
                   </div>
 
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>주 거래처</div>
-                    <div style={{ fontWeight: 600, color: '#1e293b' }}>{selectedItem.partner || '(주)영웅유통'}</div>
-                  </div>
+
 
                   <div>
                     <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>구매가</div>

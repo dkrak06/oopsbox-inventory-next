@@ -27,9 +27,9 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
   // 전체 마스터 제품 목록 상태
   const [dbItems, setDbItems] = useState<Item[]>([]);
   
-  // 위치 메타데이터 상태 (전달받은 initialLocation이 있으면 마운트 즉시 바인딩!)
-  const [warehouse, setWarehouse] = useState<string>(initialLocation || '선택하세요');
-  const [toWarehouse, setToWarehouse] = useState<string>('A창고');
+  // 위치 메타데이터 상태 (전달받은 initialLocation이 있으면 마운트 즉시 바인딩, 없으면 미선택 빈값)
+  const [warehouse, setWarehouse] = useState<string>(initialLocation || '');
+  const [toWarehouse, setToWarehouse] = useState<string>('');
   const [partner, setPartner] = useState<string>(initialPartner || '선택하세요');
   
   // 위치 및 거래처 선택 드롭다운 토글 상태
@@ -211,10 +211,14 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
   };
 
   // 입출고/조정/이동 탭(type) 변경 시 제품 목록, 날짜, 검색, 메모만 초기화
-  // warehouse(위치)와 partner(거래처)는 initialLocation/initialPartner로 세팅된 값을 유지해야 하므로 여기서 초기화 안 함!
+  // warehouse(위치)와 partner(거래처)는 initialLocation/initialPartner로 세팅된 값을 유지하며 initialItem이 있으면 해당 제품을 자동 세팅!
   useEffect(() => {
     setUseCurrentDate(true);
-    setSelectedList([]);
+    if (initialItem) {
+      setSelectedList([{ item: initialItem, qty: 1 }]);
+    } else {
+      setSelectedList([]);
+    }
     setSearchQuery('');
     setNotes('');
     setShowCalendar(false);
@@ -224,7 +228,7 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
     setShowMinuteDropdown(false);
     setShowLocationDropdown(false);
     setShowPartnerDropdown(false);
-  }, [type]);
+  }, [type, initialItem]);
 
   // 외부 영역 클릭 시 검색 드롭다운, 달력, 시간 픽커, 위치/거래처 드롭다운 모달을 자동으로 닫는 통합 감지 이펙트
   useEffect(() => {
@@ -627,17 +631,57 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
           <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>위치 <span style={{ color: '#ff4d4f' }}>*</span></span>
             {type === 'MOVE' ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', maxWidth: '380px', width: '100%' }}>
-                <select className="form-input" value={warehouse} onChange={(e) => setWarehouse(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', flex: 1, minWidth: 0 }}>
-                  <option value="기본창고">기본창고</option>
-                  <option value="A창고">A창고</option>
-                  <option value="B창고">B창고</option>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', maxWidth: '420px', width: '100%' }}>
+                {/* 출발 위치 (현재 위치) 셀렉트 */}
+                <select
+                  className="form-input"
+                  value={warehouse}
+                  onChange={(e) => setWarehouse(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: '14px',
+                    color: warehouse ? '#0f172a' : '#94a3b8',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="" disabled hidden>현재 위치</option>
+                  {dynamicLocations.map((locName) => (
+                    <option key={locName} value={locName} style={{ color: '#0f172a' }}>
+                      {locName}
+                    </option>
+                  ))}
                 </select>
-                <i className="fa-solid fa-arrow-right" style={{ color: theme.color, fontSize: '14px', flexShrink: 0 }}></i>
-                <select className="form-input" value={toWarehouse} onChange={(e) => setToWarehouse(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', flex: 1, minWidth: 0 }}>
-                  <option value="A창고">A창고</option>
-                  <option value="B창고">B창고</option>
-                  <option value="기본창고">기본창고</option>
+
+                <span style={{ color: '#f97316', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>➔</span>
+
+                {/* 목적 위치 (새 위치) 셀렉트 */}
+                <select
+                  className="form-input"
+                  value={toWarehouse}
+                  onChange={(e) => setToWarehouse(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: '14px',
+                    color: toWarehouse ? '#0f172a' : '#94a3b8',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="" disabled hidden>새 위치</option>
+                  {dynamicLocations.map((locName) => (
+                    <option key={locName} value={locName} style={{ color: '#0f172a' }}>
+                      {locName}
+                    </option>
+                  ))}
                 </select>
               </div>
             ) : (
@@ -1785,6 +1829,97 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
           )}
         </div>
       </form>
+
+      {/* 제품 추가 모달 팝업 (완벽한 중앙 배치 & 4각 곡선 라운드 커팅) */}
+      {showProductModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '24px',
+            boxSizing: 'border-box',
+          }}
+          onClick={() => setShowProductModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '680px',
+              maxHeight: '82vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. 모달 상단 헤더 */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '16px 24px',
+                borderBottom: '1px solid #f1f5f9',
+                backgroundColor: '#ffffff',
+                flexShrink: 0,
+              }}
+            >
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>제품 추가</h2>
+              <button
+                type="button"
+                onClick={() => setShowProductModal(false)}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  fontSize: '18px',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 2. 모달 내부 스크롤 본문 */}
+            <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+              <ProductForm
+                isModal={true}
+                onCancel={() => setShowProductModal(false)}
+                onSuccess={() => {
+                  const updatedItems = getStoredItems();
+                  setDbItems(updatedItems);
+                  // 새로 생성된 제품(가장 최근 등록된 0번째 품목)을 입출고 테이블 목록에 자동 추가
+                  if (updatedItems.length > 0) {
+                    const newlyCreatedItem = updatedItems[0];
+                    setSelectedList((prev) => {
+                      if (!prev.some((row) => row.item.id === newlyCreatedItem.id)) {
+                        return [{ item: newlyCreatedItem, qty: 1 }, ...prev];
+                      }
+                      return prev;
+                    });
+                  }
+                  setShowProductModal(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
