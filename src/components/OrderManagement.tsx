@@ -988,7 +988,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
                     <td style={{ padding: '14px 16px', color: '#334155' }}>{order.partner_name}</td>
                     <td style={{ padding: '14px 16px', color: '#1e293b' }}>{summaryText}</td>
                     <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>{order.total_quantity} 개</td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight 700, color: '#3b82f6' }}>₩{order.total_amount.toLocaleString()} 원</td>
+                    <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: '#3b82f6' }}>₩{order.total_amount.toLocaleString()} 원</td>
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                         {order.status === 'PENDING' && (
