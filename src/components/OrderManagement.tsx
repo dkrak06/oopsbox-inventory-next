@@ -510,7 +510,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
 
             {/* 발주일 / 판매일 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight 700, color: '#475569' }}>{titleMap.dateLabel}</label>
+              <label style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>{titleMap.dateLabel}</label>
               <input
                 type="date"
                 value={orderDate}
