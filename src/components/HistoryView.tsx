@@ -407,10 +407,15 @@ export default function HistoryView() {
               }}
             >
               <i className="fa-regular fa-calendar" style={{ color: '#64748b' }}></i>
-              <span>
-                {selectedDatePreset !== '직접 선택'
-                  ? selectedDatePreset
-                  : `${startDateInput || '시작일'} ~ ${endDateInput || '종료일'}`}
+              <span style={{ color: startDateInput || endDateInput ? '#2563eb' : 'inherit', fontWeight: startDateInput || endDateInput ? 700 : 600 }}>
+                {(() => {
+                  if (!startDateInput && !endDateInput) return '전체 기간';
+                  if (startDateInput && endDateInput) {
+                    if (startDateInput === endDateInput) return startDateInput;
+                    return `${startDateInput} ~ ${endDateInput}`;
+                  }
+                  return startDateInput || endDateInput || '전체 기간';
+                })()}
               </span>
               <i className="fa-solid fa-chevron-down" style={{ fontSize: '11px', color: '#94a3b8', marginLeft: '4px' }}></i>
             </button>
