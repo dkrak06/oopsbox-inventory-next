@@ -375,9 +375,9 @@ export default function HistoryView() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {h.type === 'ADJUST' ? (
                           <svg
-                            width="16"
+                            width="17"
                             height="16"
-                            viewBox="0 0 16 16"
+                            viewBox="0 0 17 16"
                             fill="none"
                             stroke={typeTheme.color}
                             strokeWidth="2.2"
@@ -385,10 +385,10 @@ export default function HistoryView() {
                             strokeLinejoin="round"
                             style={{ display: 'inline-block', verticalAlign: 'middle' }}
                           >
-                            <path d="M5 13.5V2.5" />
-                            <path d="M2 5.5L5 2.5L8 5.5" />
-                            <path d="M11 2.5V13.5" />
-                            <path d="M8 10.5L11 13.5L14 10.5" />
+                            <path d="M4.5 13.5V2.5" />
+                            <path d="M1.5 5.5L4.5 2.5L7.5 5.5" />
+                            <path d="M12.5 2.5V13.5" />
+                            <path d="M9.5 10.5L12.5 13.5L15.5 10.5" />
                           </svg>
                         ) : (
                           <i className={`fa-solid ${typeTheme.icon}`} style={{ color: typeTheme.color, fontSize: '15px' }}></i>
