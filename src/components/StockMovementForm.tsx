@@ -7,7 +7,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { getStoredItems, recordStockMovement, getStoredPartners, savePartnerObject, getStoredLocations, Item } from '@/lib/storage';
+import { getStoredItems, recordStockMovement, getStoredPartners, savePartnerObject, getStoredLocations, getStoredCurrentUser, Item } from '@/lib/storage';
 import ProductForm from '@/components/ProductForm';
 
 interface SelectedItemRow {
@@ -460,13 +460,13 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
       return;
     }
 
-    // 각 제품별 재고 이동 반영 실행
+    // 각 제품별 재고 이동 반영 실행 (단일 MOVE 트랜잭션으로 히스토리 1개만 생성)
+    const currentAuthor = getStoredCurrentUser ? getStoredCurrentUser() : 'kipisa2095';
     selectedList.forEach(row => {
       if (type === 'MOVE') {
-        recordStockMovement(row.item.id, 'OUT', row.qty, warehouse);
-        recordStockMovement(row.item.id, 'IN', row.qty, toWarehouse);
+        recordStockMovement(row.item.id, 'MOVE', row.qty, warehouse, toWarehouse, currentAuthor, notes);
       } else {
-        recordStockMovement(row.item.id, type, row.qty, warehouse);
+        recordStockMovement(row.item.id, type, row.qty, warehouse, '', currentAuthor, notes);
       }
     });
 

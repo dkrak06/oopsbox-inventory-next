@@ -22,7 +22,7 @@ export interface Item {
   history_count?: number; // 거래 횟수
 }
 
-// 재고 변동 히스토리 인터페이스
+// 재고 변동 히스토리 인터페이스 (변동 전/후 재고, 작성자, 메모, 이동 위치 지원)
 export interface StockHistory {
   id: string;
   type: 'IN' | 'OUT' | 'ADJUST' | 'MOVE'; // 입고, 출고, 조정, 이동
@@ -31,8 +31,19 @@ export interface StockHistory {
   item_name: string;
   sku: string;
   qty_change: number;
+  before_qty?: number;
+  after_qty?: number;
+  to_before_qty?: number;
+  to_after_qty?: number;
   location: string;
+  to_location?: string;
   created_at: string;
+  date?: string;
+  author?: string;
+  notes?: string;
+  category_brand?: string;
+  items_count?: number;
+  total_qty?: number;
 }
 
 export interface LocationItem {
@@ -247,12 +258,15 @@ export const updateItem = (itemId: string, updatedFields: Partial<Omit<Item, 'id
   return updated;
 };
 
-// 4. 재고 입출고/조정 기록 및 수량 업데이트 함수
+// 4. 재고 입출고/조정/이동 기록 및 수량 업데이트 함수 (유형별 before_qty, after_qty, qty_change 완전 정밀 연산)
 export const recordStockMovement = (
   itemId: string,
   type: 'IN' | 'OUT' | 'ADJUST' | 'MOVE',
   qtyChange: number,
-  locationName: string = '기본 위치'
+  locationName: string = '기본 위치',
+  toLocationName: string = '',
+  author: string = 'kipisa2095',
+  notes: string = ''
 ) => {
   const items = getStoredItems();
   const itemIndex = items.findIndex((i) => i.id === itemId);
@@ -262,32 +276,66 @@ export const recordStockMovement = (
     const currentQty = targetItem.locations[locationName] || 0;
     
     let newQty = currentQty;
-    if (type === 'IN') newQty += qtyChange;
-    else if (type === 'OUT') newQty = Math.max(0, currentQty - qtyChange);
-    else if (type === 'ADJUST') newQty = qtyChange;
+    let actualChange = qtyChange;
+    let toCurrentQty = 0;
+    let toNewQty = 0;
 
-    targetItem.locations[locationName] = newQty;
+    if (type === 'IN') {
+      newQty = currentQty + qtyChange;
+      actualChange = qtyChange;
+      targetItem.locations[locationName] = newQty;
+    } else if (type === 'OUT') {
+      newQty = Math.max(0, currentQty - qtyChange);
+      actualChange = qtyChange;
+      targetItem.locations[locationName] = newQty;
+    } else if (type === 'ADJUST') {
+      newQty = qtyChange;
+      actualChange = Math.abs(newQty - currentQty);
+      targetItem.locations[locationName] = newQty;
+    } else if (type === 'MOVE') {
+      // 단일 이동 트랜잭션: 출발 위치 감소, 도착 위치 증가
+      const destLocation = toLocationName || '도착 위치';
+      newQty = Math.max(0, currentQty - qtyChange);
+      toCurrentQty = targetItem.locations[destLocation] || 0;
+      toNewQty = toCurrentQty + qtyChange;
+      actualChange = qtyChange;
+
+      targetItem.locations[locationName] = newQty;
+      targetItem.locations[destLocation] = toNewQty;
+      saveLocationName(destLocation);
+    }
+
     targetItem.total_quantity = Object.values(targetItem.locations).reduce((a, b) => a + b, 0);
     targetItem.updated_at = new Date().toISOString();
     targetItem.history_count = (targetItem.history_count || 0) + 1;
 
     items[itemIndex] = targetItem;
     localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
-
-    // 신규 위치명이면 hb_locations에 자동 등록 (거래처명이 위치 목록에 섯입는 문제 근본 차단!)
     saveLocationName(locationName);
 
-    // 히스토리 생성 및 저장
+    const now = new Date();
+    const dateFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    // 히스토리 생성 및 저장 (MOVE 타입은 출발/도착 위치를 담은 단일 레코드!)
     const historyData: StockHistory = {
-      id: 'HIST-' + Date.now(),
+      id: 'HIST-' + Date.now() + Math.random().toString(36).substring(2, 5),
       type,
-      type_label: type === 'IN' ? '입고' : type === 'OUT' ? '출고' : type === 'ADJUST' ? '재고조정' : '재고이동',
+      type_label: type === 'IN' ? '입고' : type === 'OUT' ? '출고' : type === 'ADJUST' ? '조정' : '이동',
       item_id: targetItem.id,
       item_name: targetItem.name,
       sku: targetItem.sku,
-      qty_change: qtyChange,
+      qty_change: actualChange,
+      before_qty: currentQty,
+      after_qty: newQty,
+      to_before_qty: toCurrentQty,
+      to_after_qty: toNewQty,
       location: locationName,
-      created_at: new Date().toLocaleTimeString(),
+      to_location: toLocationName,
+      created_at: dateFormatted,
+      date: dateFormatted,
+      author: author || 'kipisa2095',
+      notes: notes || '',
+      category_brand: `${targetItem.category || '기본'} / ${targetItem.brand || '기본'}`,
     };
 
     const histories = getStoredHistories();
@@ -304,6 +352,12 @@ export const getStoredHistories = (): StockHistory[] => {
   } catch (error) {
     return [];
   }
+};
+
+// 현재 접속한 사용자 아이디 가져오기
+export const getStoredCurrentUser = (): string => {
+  if (typeof window === 'undefined') return 'kipisa2095';
+  return localStorage.getItem('hb_current_user') || 'kipisa2095';
 };
 
 const PARTNERS_KEY = 'hb_partners';
@@ -491,21 +545,35 @@ export const calculateBundleAvailableQty = (bundle: BundleItem): number => {
 // 1. 주문(구매/판매/반품/배송) 인터페이스
 export interface OrderProduct {
   item_id: string;
-  item_name: string;
-  qty: number;
-  price: number;
+  item_name?: string;
+  name?: string;
+  sku?: string;
+  qty?: number;
+  quantity?: number;
+  price?: number;
+  unit_price?: number;
 }
 
 export interface OrderItem {
   id: string;
-  type: 'BUY' | 'SELL' | 'RETURN' | 'SHIPMENT'; // 구매, 판매, 반품, 배송
-  type_label: string;
-  status: 'DRAFT' | 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED'; // 임시 저장, 대기중, 부분완료, 완료, 취소됨
-  status_label: string;
-  partner: string; // 거래처명 (공급자 혹은 고객사)
-  products: OrderProduct[]; // 포함된 품목 리스트 (장바구니)
-  tracking_number?: string; // 배송용 송장 번호
-  created_at: string; // 등록 일시 (발주일/주문일)
+  order_number?: string;
+  type?: 'BUY' | 'SELL' | 'RETURN' | 'SHIPMENT' | string;
+  type_label?: string;
+  order_type?: string;
+  status: 'DRAFT' | 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED';
+  status_label?: string;
+  partner?: string;
+  partner_name?: string;
+  manager_name?: string;
+  products?: OrderProduct[];
+  items?: OrderProduct[];
+  tracking_number?: string;
+  created_at: string;
+  order_date?: string;
+  total_quantity?: number;
+  total_amount?: number;
+  notes?: string;
+  memo?: string;
 }
 
 // 2. 재고 공유 링크 인터페이스
@@ -531,14 +599,6 @@ export interface InventoryCount {
     system_qty: number; // 전산 상의 재고 수량
     actual_qty: number; // 실제 실사 수량
   }[];
-}
-
-// 4. 커스텀 속성 인터페이스
-export interface CustomAttribute {
-  id: string;
-  name: string; // 속성명 (예: 색상, 사이즈, 재질)
-  values: string[]; // 속성에 포함될 옵션값 리스트 (예: Black, White, XL, L 등)
-  created_at: string;
 }
 
 // 5. 가격 템플릿 인터페이스
@@ -613,17 +673,19 @@ export const saveOrder = (newOrder: Omit<OrderItem, 'id' | 'created_at'>): Order
 
 export const updateOrderStatus = (
   id: string, 
-  status: 'DRAFT' | 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED',
-  type: 'BUY' | 'SELL' | 'RETURN' | 'SHIPMENT'
+  status: OrderItem['status'],
+  type?: 'BUY' | 'SELL' | 'RETURN' | 'SHIPMENT' | string
 ): OrderItem[] => {
   const current = getStoredOrders();
+  const currentOrder = current.find(o => o.id === id);
+  const targetType = type || currentOrder?.type || 'BUY';
   
   // 상태 레이블 매핑 (실제 박스히어로 주문/발주 상태 명칭 동기화)
   const labels: { [key: string]: string } = {
     DRAFT: '임시 저장',
-    PENDING: type === 'BUY' ? '입고 대기' : '출고 대기',
-    PARTIAL: type === 'BUY' ? '부분 입고' : '부분 출고',
-    COMPLETED: type === 'BUY' ? '입고 완료' : '출고 완료',
+    PENDING: targetType === 'BUY' ? '입고 대기' : '출고 대기',
+    PARTIAL: targetType === 'BUY' ? '부분 입고' : '부분 출고',
+    COMPLETED: targetType === 'BUY' ? '입고 완료' : '출고 완료',
     CANCELLED: '취소됨'
   };
 
@@ -763,8 +825,9 @@ export type AttributeMode = '고정' | '선택'; // 고정: 기본 표출 / 선�
 export interface CustomAttribute {
   id: string;
   name: string;
-  type: AttributeType;
-  mode: AttributeMode;
+  type?: AttributeType;
+  mode?: AttributeMode;
+  values?: string[];
   created_at: string;
 }
 

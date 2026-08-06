@@ -229,7 +229,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
   // 장바구니에 품목 추가 핸들러
   const handleAddToCart = (item: Item) => {
     if (cart.some(p => p.item_id === item.id)) {
-      setCart(cart.map(p => p.item_id === item.id ? { ...p, quantity: p.quantity + 1 } : p));
+      setCart(cart.map(p => p.item_id === item.id ? { ...p, quantity: (p.quantity || p.qty || 0) + 1 } : p));
     } else {
       const initialPrice = type === 'BUY' ? (item.purchase_price || 0) : (item.selling_price || 0);
       setCart([...cart, {
@@ -270,8 +270,8 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
   };
 
   // 계산서 총액 합산
-  const subtotalPrice = cart.reduce((sum, p) => sum + (p.quantity * p.unit_price), 0);
-  const totalItemCount = cart.reduce((sum, p) => sum + p.quantity, 0);
+  const subtotalPrice = cart.reduce((sum, p) => sum + ((p.quantity || p.qty || 0) * (p.unit_price || p.price || 0)), 0);
+  const totalItemCount = cart.reduce((sum, p) => sum + (p.quantity || p.qty || 0), 0);
 
   // 저장 핸들러
   const handleSaveOrder = (isDraft: boolean = false) => {
@@ -433,7 +433,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
                 <tbody>
                   {/* 담긴 제품 목록 행 */}
                   {cart.map((cartItem) => {
-                    const rowAmount = cartItem.quantity * cartItem.unit_price;
+                    const rowAmount = (cartItem.quantity || cartItem.qty || 0) * (cartItem.unit_price || cartItem.price || 0);
                     return (
                       <tr key={cartItem.item_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '12px 16px' }}>
@@ -988,7 +988,7 @@ export default function OrderManagement({ currentPath }: OrderManagementProps) {
                     <td style={{ padding: '14px 16px', color: '#334155' }}>{order.partner_name}</td>
                     <td style={{ padding: '14px 16px', color: '#1e293b' }}>{summaryText}</td>
                     <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>{order.total_quantity} 개</td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: '#3b82f6' }}>₩{order.total_amount.toLocaleString()} 원</td>
+                    <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: '#3b82f6' }}>₩{(order.total_amount || 0).toLocaleString()} 원</td>
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                         {order.status === 'PENDING' && (

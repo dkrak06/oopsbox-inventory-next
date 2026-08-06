@@ -548,13 +548,13 @@ export default function ReportManagement({ currentPath }: ReportManagementProps)
     const completedOrders = orders.filter(o => o.status === 'COMPLETED');
     const totalBuy = completedOrders
       .filter(o => o.type === 'BUY')
-      .reduce((sum, o) => sum + (o.products || []).reduce((prodSum, p) => prodSum + (p.qty * p.price), 0), 0);
+      .reduce((sum, o) => sum + (o.products || []).reduce((prodSum, p) => prodSum + ((p.qty || p.quantity || 0) * (p.price || p.unit_price || 0)), 0), 0);
     const totalSell = completedOrders
       .filter(o => o.type === 'SELL')
-      .reduce((sum, o) => sum + (o.products || []).reduce((prodSum, p) => prodSum + (p.qty * p.price), 0), 0);
+      .reduce((sum, o) => sum + (o.products || []).reduce((prodSum, p) => prodSum + ((p.qty || p.quantity || 0) * (p.price || p.unit_price || 0)), 0), 0);
     const totalReturn = completedOrders
       .filter(o => o.type === 'RETURN')
-      .reduce((sum, o) => sum + (o.products || []).reduce((prodSum, p) => prodSum + (p.qty * p.price), 0), 0);
+      .reduce((sum, o) => sum + (o.products || []).reduce((prodSum, p) => prodSum + ((p.qty || p.quantity || 0) * (p.price || p.unit_price || 0)), 0), 0);
 
     const netProfit = totalSell - totalBuy - totalReturn;
     const marginPercent = totalSell === 0 ? 0 : Math.round((netProfit / totalSell) * 100);
