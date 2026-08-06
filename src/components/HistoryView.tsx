@@ -47,6 +47,16 @@ export default function HistoryView() {
   // 더 보기 액션 드롭다운 팝업 상태
   const [showMoreActions, setShowMoreActions] = useState<boolean>(false);
 
+  // 팝업 달력 포포버 상태
+  const [showDatePickerPopover, setShowDatePickerPopover] = useState<boolean>(false);
+  
+  // 달력 연/월 이동용 상태 (기본: 2026년 8월 기준)
+  const [viewYear, setViewYear] = useState<number>(2026);
+  const [viewMonth, setViewMonth] = useState<number>(7); // 0-indexed (7 = 8월)
+
+  // 범위 클릭 선택 단계 ('START' | 'END')
+  const [dateClickStep, setDateClickStep] = useState<'START' | 'END'>('START');
+
   // 로컬스토리지에서 데이터 로드 및 첫 항목 자동 선택
   useEffect(() => {
     const loadedHistories = getStoredHistories();
@@ -59,11 +69,51 @@ export default function HistoryView() {
   // 선택된 히스토리 객체
   const selectedHistory = histories.find((h) => h.id === selectedHistoryId) || histories[0] || null;
 
+  // 월 이동 함수
+  const handleMonthChange = (delta: number) => {
+    let newMonth = viewMonth + delta;
+    let newYear = viewYear;
+    if (newMonth < 0) {
+      newMonth = 11;
+      newYear -= 1;
+    } else if (newMonth > 11) {
+      newMonth = 0;
+      newYear += 1;
+    }
+    setViewMonth(newMonth);
+    setViewYear(newYear);
+  };
+
+  // 달력 날짜 클릭 처리 (범위 선택)
+  const handleDateClick = (fullDateStr: string) => {
+    if (dateClickStep === 'START' || !startDateInput || (startDateInput && endDateInput)) {
+      setStartDateInput(fullDateStr);
+      setEndDateInput('');
+      setDateClickStep('END');
+      setSelectedDatePreset('직접 선택');
+    } else {
+      if (fullDateStr < startDateInput) {
+        setStartDateInput(fullDateStr);
+        setEndDateInput('');
+        setDateClickStep('END');
+      } else {
+        setEndDateInput(fullDateStr);
+        setDateClickStep('START');
+      }
+      setSelectedDatePreset('직접 선택');
+    }
+  };
+
   // 7가지 빠른 기간 선택 처리
   const handlePresetSelect = (presetName: string) => {
     setSelectedDatePreset(presetName);
-    const today = new Date();
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const today = new Date(2026, 7, 6); // 2026년 8월 6일 기준
+    const formatDate = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
 
     if (presetName === '전체 기간') {
       setStartDateInput('');
@@ -72,12 +122,12 @@ export default function HistoryView() {
       setStartDateInput(formatDate(today));
       setEndDateInput(formatDate(today));
     } else if (presetName === '최근 7일') {
-      const past = new Date();
+      const past = new Date(today);
       past.setDate(today.getDate() - 7);
       setStartDateInput(formatDate(past));
       setEndDateInput(formatDate(today));
     } else if (presetName === '최근 30일') {
-      const past = new Date();
+      const past = new Date(today);
       past.setDate(today.getDate() - 30);
       setStartDateInput(formatDate(past));
       setEndDateInput(formatDate(today));
@@ -86,9 +136,9 @@ export default function HistoryView() {
       setStartDateInput(formatDate(first));
       setEndDateInput(formatDate(today));
     } else if (presetName === '지난주') {
-      const lastWeekStart = new Date();
+      const lastWeekStart = new Date(today);
       lastWeekStart.setDate(today.getDate() - today.getDay() - 7);
-      const lastWeekEnd = new Date();
+      const lastWeekEnd = new Date(today);
       lastWeekEnd.setDate(today.getDate() - today.getDay() - 1);
       setStartDateInput(formatDate(lastWeekStart));
       setEndDateInput(formatDate(lastWeekEnd));
@@ -98,6 +148,109 @@ export default function HistoryView() {
       setStartDateInput(formatDate(lastMonthFirst));
       setEndDateInput(formatDate(lastMonthLast));
     }
+  };
+
+  // 캘린더 날짜 그리드 렌더링 함수 (스크린샷 26 범위 강조 & 스크린샷 27 오늘 강조)
+  const renderCalendarDays = () => {
+    const days = [];
+    const firstDayOfMonth = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
+
+    // 이전 달 전달분 옅은 표시
+    for (let i = firstDayOfMonth - 1; i >= 0; i--) {
+      const dayNum = daysInPrevMonth - i;
+      days.push(
+        <div key={`prev-${dayNum}`} style={{ padding: '8px 0', fontSize: '13px', color: '#fca5a5', opacity: 0.6 }}>
+          {dayNum}
+        </div>
+      );
+    }
+
+    // 이번 달 날짜들
+    for (let day = 1; day <= daysInMonth; day++) {
+      const monthStr = String(viewMonth + 1).padStart(2, '0');
+      const dayStr = String(day).padStart(2, '0');
+      const fullDateStr = `${viewYear}-${monthStr}-${dayStr}`;
+
+      const isStart = startDateInput === fullDateStr;
+      const isEnd = endDateInput === fullDateStr;
+      const isInRange =
+        startDateInput &&
+        endDateInput &&
+        fullDateStr >= startDateInput &&
+        fullDateStr <= endDateInput;
+      const isToday = fullDateStr === '2026-08-06';
+
+      const isSunday = new Date(viewYear, viewMonth, day).getDay() === 0;
+      const isSaturday = new Date(viewYear, viewMonth, day).getDay() === 6;
+
+      let containerBg = 'transparent';
+      let textColor = isSunday || isSaturday ? '#ef4444' : '#1e293b';
+      let borderRadius = '0';
+      let isCircleBorder = false;
+
+      if (isStart || isEnd) {
+        containerBg = '#818cf8'; // 박스히어로 시그니처 둥근 캡 블루 보라색
+        textColor = '#ffffff';
+        borderRadius = isStart && isEnd ? '50%' : isStart ? '16px 0 0 16px' : '0 16px 16px 0';
+      } else if (isInRange) {
+        containerBg = '#c7d2fe'; // 범위 연결 연보라파랑 배경
+        textColor = '#312e81';
+      }
+
+      if (isToday && !isStart && !isEnd && !isInRange) {
+        isCircleBorder = true; // 스크린샷 27 파란 원형 스트로크 표시
+      }
+
+      days.push(
+        <div
+          key={`current-${day}`}
+          onClick={() => handleDateClick(fullDateStr)}
+          style={{
+            padding: '4px 0',
+            fontSize: '13px',
+            fontWeight: isStart || isEnd || isToday ? 700 : 500,
+            color: textColor,
+            backgroundColor: containerBg,
+            borderRadius: borderRadius,
+            cursor: 'pointer',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            userSelect: 'none'
+          }}
+        >
+          <span
+            style={{
+              width: '28px',
+              height: '28px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: isToday && !isInRange ? '50%' : 'none',
+              border: isCircleBorder ? '1.5px solid #3b82f6' : 'none'
+            }}
+          >
+            {day}
+          </span>
+        </div>
+      );
+    }
+
+    // 다음 달 날짜들 옅게 채우기
+    const totalSlots = days.length;
+    const remainingSlots = (7 - (totalSlots % 7)) % 7;
+    for (let i = 1; i <= remainingSlots; i++) {
+      days.push(
+        <div key={`next-${i}`} style={{ padding: '8px 0', fontSize: '13px', color: '#fca5a5', opacity: 0.6 }}>
+          {i}
+        </div>
+      );
+    }
+
+    return days;
   };
 
   // 엑셀 내보내기 처리
@@ -193,52 +346,223 @@ export default function HistoryView() {
         </button>
       </div>
 
-      {/* 2. 필터 영역: 7가지 기간선택 프리셋 & 검색창 & 유형 필터 */}
-      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 20px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+      {/* 2. 필터 영역: 팝업 커스텀 달력 피커 (스크린샷 26, 27 100% 반영) */}
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px 16px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', position: 'relative' }}>
         
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
-          {['전체 기간', '오늘', '최근 7일', '최근 30일', '이번 달', '지난주', '지난달'].map((preset) => {
-            const isSelected = selectedDatePreset === preset;
-            return (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => handlePresetSelect(preset)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          
+          {/* 달력 팝업 트리거 버튼 */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowDatePickerPopover((prev) => !prev)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                backgroundColor: showDatePickerPopover ? '#eff6ff' : '#ffffff',
+                color: showDatePickerPopover ? '#2563eb' : '#334155',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <i className="fa-regular fa-calendar" style={{ color: '#64748b' }}></i>
+              <span>
+                {selectedDatePreset !== '직접 선택'
+                  ? selectedDatePreset
+                  : `${startDateInput || '시작일'} ~ ${endDateInput || '종료일'}`}
+              </span>
+              <i className="fa-solid fa-chevron-down" style={{ fontSize: '11px', color: '#94a3b8', marginLeft: '4px' }}></i>
+            </button>
+
+            {/* 스크린샷 26, 27 지정 커스텀 달력 팝업 포포버 */}
+            {showDatePickerPopover && (
+              <div
                 style={{
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  border: isSelected ? '1px solid #3b82f6' : '1px solid #e2e8f0',
-                  backgroundColor: isSelected ? '#eff6ff' : '#ffffff',
-                  color: isSelected ? '#2563eb' : '#64748b',
-                  fontWeight: isSelected ? 700 : 500,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
+                  position: 'absolute',
+                  top: '46px',
+                  left: '0',
+                  zIndex: 200,
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '16px',
+                  boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                  padding: '24px',
+                  display: 'flex',
+                  gap: '24px',
+                  width: '540px',
+                  boxSizing: 'border-box'
                 }}
               >
-                {preset}
-              </button>
-            );
-          })}
-        </div>
+                {/* 좌측 310px: 월 달력 및 범위 선택 피커 */}
+                <div style={{ flex: '1 1 310px' }}>
+                  {/* 연/월 헤더: < 8월 2026 > */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleMonthChange(-1)}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '14px', padding: '4px 8px' }}
+                    >
+                      <i className="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+                      {viewMonth + 1}월 {viewYear}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleMonthChange(1)}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '14px', padding: '4px 8px' }}
+                    >
+                      <i className="fa-solid fa-chevron-right"></i>
+                    </button>
+                  </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <input
-              type="date"
-              value={startDateInput}
-              onChange={(e) => setStartDateInput(e.target.value)}
-              style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', color: '#334155', outline: 'none' }}
-            />
-            <span style={{ color: '#94a3b8' }}>~</span>
-            <input
-              type="date"
-              value={endDateInput}
-              onChange={(e) => setEndDateInput(e.target.value)}
-              style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', color: '#334155', outline: 'none' }}
-            />
+                  {/* 요일 라벨: 일 월 화 수 목 금 토 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '10px' }}>
+                    <span style={{ color: '#ef4444' }}>일</span>
+                    <span>월</span>
+                    <span>화</span>
+                    <span>수</span>
+                    <span>목</span>
+                    <span>금</span>
+                    <span style={{ color: '#ef4444' }}>토</span>
+                  </div>
+
+                  {/* 일자 그리드 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', rowGap: '4px', textAlign: 'center' }}>
+                    {renderCalendarDays()}
+                  </div>
+
+                  {/* 하단 날짜 직접 입력란 (시작일 ~ 종료일) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '20px' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600 }}>시작일</div>
+                      <input
+                        type="text"
+                        placeholder="YYYY-MM-DD"
+                        value={startDateInput}
+                        onChange={(e) => setStartDateInput(e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '12px', boxSizing: 'border-box', outline: 'none' }}
+                      />
+                    </div>
+                    <span style={{ color: '#94a3b8', marginTop: '16px' }}>-</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', fontWeight: 600 }}>종료일</div>
+                      <input
+                        type="text"
+                        placeholder="YYYY-MM-DD"
+                        value={endDateInput}
+                        onChange={(e) => setEndDateInput(e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '12px', boxSizing: 'border-box', outline: 'none' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 우측 150px: 7가지 퀵 프리셋 버튼 */}
+                <div style={{ width: '150px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {['전체 기간', '오늘', '최근 7일', '최근 30일', '이번 달', '지난주', '지난달'].map((preset) => {
+                    const isSelected = selectedDatePreset === preset;
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          handlePresetSelect(preset);
+                          setShowDatePickerPopover(false);
+                        }}
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          border: 'none',
+                          backgroundColor: isSelected ? '#f1f5f9' : '#f8fafc',
+                          color: isSelected ? '#0f172a' : '#475569',
+                          fontWeight: isSelected ? 700 : 500,
+                          fontSize: '13px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {preset}
+                      </button>
+                    );
+                  })}
+                </div>
+
+              </div>
+            )}
           </div>
 
+          {/* 필터 추가 버튼 (유형 드롭다운) */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowFilterDropdown((prev) => !prev)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                backgroundColor: activeFilterCategory !== '전체' ? '#eff6ff' : '#ffffff',
+                color: activeFilterCategory !== '전체' ? '#2563eb' : '#475569',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <i className="fa-solid fa-plus" style={{ fontSize: '11px' }}></i>
+              <span>필터 추가</span>
+              {activeFilterCategory !== '전체' && (
+                <span style={{ fontSize: '11px', backgroundColor: '#3b82f6', color: '#ffffff', borderRadius: '10px', padding: '1px 6px' }}>
+                  {activeFilterCategory}
+                </span>
+              )}
+            </button>
+
+            {/* 필터 드롭다운 팝업 */}
+            {showFilterDropdown && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '42px',
+                  left: '0',
+                  zIndex: 150,
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                  width: '130px',
+                  padding: '6px 0'
+                }}
+              >
+                {['전체', '입고', '출고', '조정', '이동'].map((category) => (
+                  <div
+                    key={category}
+                    onClick={() => handleSelectFilter(category)}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      color: activeFilterCategory === category ? '#2563eb' : '#334155',
+                      fontWeight: activeFilterCategory === category ? 700 : 400,
+                      backgroundColor: activeFilterCategory === category ? '#eff6ff' : 'transparent',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {category}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 검색 입력창 */}
           <div style={{ flex: 1, minWidth: '220px', position: 'relative' }}>
             <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '13px' }}></i>
             <input
@@ -256,68 +580,6 @@ export default function HistoryView() {
                 boxSizing: 'border-box'
               }}
             />
-          </div>
-
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={() => setShowFilterDropdown((prev) => !prev)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: activeFilterCategory !== '전체' ? '#eff6ff' : '#ffffff',
-                color: activeFilterCategory !== '전체' ? '#2563eb' : '#475569',
-                fontWeight: 600,
-                fontSize: '13px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <i className="fa-solid fa-filter"></i>
-              <span>필터: {activeFilterCategory}</span>
-              <i className="fa-solid fa-chevron-down" style={{ fontSize: '10px' }}></i>
-            </button>
-
-            {showFilterDropdown && (
-              <div
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: '100%',
-                  marginTop: '4px',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  zIndex: 10,
-                  minWidth: '120px',
-                  overflow: 'hidden'
-                }}
-              >
-                {['전체', '입고', '출고', '이동', '조정'].map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => handleSelectFilter(cat)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 14px',
-                      textAlign: 'left',
-                      border: 'none',
-                      backgroundColor: activeFilterCategory === cat ? '#f1f5f9' : 'transparent',
-                      fontSize: '13px',
-                      color: '#334155',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>
