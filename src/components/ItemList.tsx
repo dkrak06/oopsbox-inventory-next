@@ -46,9 +46,13 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
   const [editItemBarcode, setEditItemBarcode] = useState<string>('');
   const [editItemCategory, setEditItemCategory] = useState<string>('');
   const [editItemBrand, setEditItemBrand] = useState<string>('');
+  // 수정 모달 관련 상태
   const [editItemPurchasePrice, setEditItemPurchasePrice] = useState<number | string>('');
   const [editItemSellingPrice, setEditItemSellingPrice] = useState<number | string>('');
   const [editItemPartner, setEditItemPartner] = useState<string>('');
+
+  // ··· 더보기 메뉴 드롭다운 상태
+  const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
 
   // 마운트 시 저장소에서 제품 데이터 로드 (강제 고정 선택 제거)
   const loadData = () => {
@@ -69,6 +73,10 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
       }
       if (!target.closest('.group-by-dropdown-wrapper')) {
         setIsGroupDropdownOpen(false);
+      }
+      // ··· 더보기 메뉴 외부 클릭 시 닫기
+      if (!target.closest('.more-menu-wrapper')) {
+        setShowMoreMenu(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -176,6 +184,29 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
       setItems(updated);
       setSelectedItemId(updated.length > 0 ? updated[0].id : null);
     }
+    setShowMoreMenu(false);
+  };
+
+  // 제품 복제 핸들러 — 이름에 "(복사)" 를 붙여 새 제품으로 추가
+  const handleDuplicate = (item: Item) => {
+    const { getStoredItems: _get, saveItems } = require('@/lib/storage');
+    const all = getStoredItems();
+    const newItem: Item = {
+      ...item,
+      id: `item_${Date.now()}`,
+      name: `${item.name} (복사)`,
+      sku: `SKU-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      total_quantity: 0,
+      locations: {},
+      history_count: 0,
+      created_at: new Date().toISOString(),
+    };
+    const updated = [...all, newItem];
+    localStorage.setItem('inventory_items', JSON.stringify(updated));
+    setItems(getStoredItems());
+    setSelectedItemId(newItem.id);
+    setShowMoreMenu(false);
+    alert(`'${item.name}' 제품이 복제되었습니다.`);
   };
 
   // 퀵 액션 이동 핸들러 ([입고 | 출고 | 조정 | 이동])
@@ -508,7 +539,7 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                   </div>
                 </div>
 
-                {/* 우측 상단: 수정/삭제 */}
+                {/* 우측 상단: 수정 + ··· 더보기 메뉴 */}
                 <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                   <button
                     type="button"
@@ -517,13 +548,86 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                   >
                     ✏️ 수정
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(selectedItem.id, selectedItem.name)}
-                    style={{ padding: '7px 14px', borderRadius: '6px', border: '1px solid #fee2e2', backgroundColor: '#ffffff', color: '#ef4444', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    🗑️ 삭제
-                  </button>
+                  {/* ··· 더보기 버튼 + 드롭다운 */}
+                  <div className="more-menu-wrapper" style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowMoreMenu((v) => !v)}
+                      style={{
+                        padding: '7px 12px',
+                        borderRadius: '6px',
+                        border: `1px solid ${showMoreMenu ? '#3b82f6' : '#cbd5e1'}`,
+                        backgroundColor: showMoreMenu ? '#eff6ff' : '#ffffff',
+                        color: showMoreMenu ? '#3b82f6' : '#64748b',
+                        fontWeight: 700,
+                        fontSize: '16px',
+                        cursor: 'pointer',
+                        letterSpacing: '2px',
+                        lineHeight: 1,
+                      }}
+                    >
+                      ···
+                    </button>
+                    {/* 드롭다운 메뉴 */}
+                    {showMoreMenu && (
+                      <div style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 6px)',
+                        right: 0,
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '10px',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                        zIndex: 200,
+                        minWidth: '150px',
+                        overflow: 'hidden',
+                      }}>
+                        {/* 복제 */}
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicate(selectedItem)}
+                          style={{ width: '100%', padding: '13px 18px', border: 'none', backgroundColor: 'transparent', textAlign: 'left', fontSize: '14px', color: '#1e293b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          📋 복제
+                        </button>
+                        <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '0 12px' }} />
+                        {/* 삭제 */}
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(selectedItem.id, selectedItem.name)}
+                          style={{ width: '100%', padding: '13px 18px', border: 'none', backgroundColor: 'transparent', textAlign: 'left', fontSize: '14px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fff5f5')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          🗑️ 삭제
+                        </button>
+                        <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '0 12px' }} />
+                        {/* 라벨 인쇄 */}
+                        <button
+                          type="button"
+                          onClick={() => { window.print(); setShowMoreMenu(false); }}
+                          style={{ width: '100%', padding: '13px 18px', border: 'none', backgroundColor: 'transparent', textAlign: 'left', fontSize: '14px', color: '#1e293b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          🖨️ 라벨 인쇄
+                        </button>
+                        <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '0 12px' }} />
+                        {/* 변경 이력 */}
+                        <button
+                          type="button"
+                          onClick={() => { if (onNavigate) onNavigate('history'); setShowMoreMenu(false); }}
+                          style={{ width: '100%', padding: '13px 18px', border: 'none', backgroundColor: 'transparent', textAlign: 'left', fontSize: '14px', color: '#1e293b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          📜 변경 이력
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
