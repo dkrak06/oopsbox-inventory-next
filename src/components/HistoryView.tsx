@@ -536,6 +536,27 @@ export default function HistoryView() {
                       </button>
                     );
                   })}
+                  {/* 완료 (닫기) 버튼 */}
+                  <button
+                    type="button"
+                    onClick={() => setShowDatePickerPopover(false)}
+                    style={{
+                      marginTop: '4px',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      backgroundColor: '#3b82f6',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      fontSize: '13px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(59, 130, 246, 0.25)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    완료
+                  </button>
                 </div>
 
               </div>
