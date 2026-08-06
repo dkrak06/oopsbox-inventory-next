@@ -510,26 +510,9 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                   </div>
                 </div>
 
-                {/* 우측: 수정/삭제 + 바로 아래 입고/출고/조정/이동 2×2 */}
+                {/* 우측: 입고/출고/조정/이동 2×2 + 바로 아래 수정/삭제 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
-                  {/* 수정/삭제 버튼 행 */}
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenProductEdit(selectedItem)}
-                      style={{ padding: '7px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#334155', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      ✏️ 수정
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(selectedItem.id, selectedItem.name)}
-                      style={{ padding: '7px 14px', borderRadius: '6px', border: '1px solid #fee2e2', backgroundColor: '#ffffff', color: '#ef4444', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      🗑️ 삭제
-                    </button>
-                  </div>
-                  {/* 입고/출고/조정/이동 2×2 그리드 — 수정/삭제 바로 아래 */}
+                  {/* 입고/출고/조정/이동 2×2 그리드 — 최상단 */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                     <button
                       type="button"
@@ -560,8 +543,26 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                       이동
                     </button>
                   </div>
+                  {/* 수정/삭제 버튼 행 — 조정/이동 바로 아래 */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenProductEdit(selectedItem)}
+                      style={{ flex: 1, padding: '7px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#334155', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                    >
+                      ✏️ 수정
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(selectedItem.id, selectedItem.name)}
+                      style={{ flex: 1, padding: '7px 14px', borderRadius: '6px', border: '1px solid #fee2e2', backgroundColor: '#ffffff', color: '#ef4444', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                    >
+                      🗑️ 삭제
+                    </button>
+                  </div>
                 </div>
               </div>
+
 
               {/* 3. 카테고리/브랜드 — 2열 그리드 (바코드는 상단으로 이동) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', fontSize: '14px', marginBottom: '20px' }}>
