@@ -161,14 +161,20 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-in' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-in')}
             >
-              <i className="fa-solid fa-circle-arrow-down menu-icon" style={{ color: '#22c55e' }}></i>
+              <i
+                className="fa-solid fa-circle-arrow-down menu-icon"
+                style={{ color: currentPath === 'stock-in' ? '#3b82f6' : '#22c55e' }}
+              ></i>
               <span className="menu-title">입고 등록</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'stock-out' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-out')}
             >
-              <i className="fa-solid fa-circle-arrow-up menu-icon" style={{ color: '#ef4444' }}></i>
+              <i
+                className="fa-solid fa-circle-arrow-up menu-icon"
+                style={{ color: currentPath === 'stock-out' ? '#3b82f6' : '#ef4444' }}
+              ></i>
               <span className="menu-title">출고 등록</span>
             </div>
             <div
