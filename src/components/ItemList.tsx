@@ -504,9 +504,7 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                   <div>
                     <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{selectedItem.name}</h2>
                     <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>SKU: {selectedItem.sku}</div>
-                    {selectedItem.barcode && (
-                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>바코드: {selectedItem.barcode}</div>
-                    )}
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>바코드: {selectedItem.barcode || '-'}</div>
                   </div>
                 </div>
 
