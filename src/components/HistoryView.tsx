@@ -342,14 +342,14 @@ export default function HistoryView() {
               filteredHistories.map((h) => {
                 const isSelected = selectedHistory && selectedHistory.id === h.id;
 
-                // 이동 아이콘(fa-right-left)을 90도 꺾어(fa-rotate-90) 조정 화살표로 100% 디자인 통일 사용!
+                // 이동(오른쪽 화살표 fa-arrow-right), 조정(이동 아이콘 90도 회전 fa-right-left fa-rotate-90)
                 const typeTheme =
                   h.type === 'IN'
                     ? { icon: 'fa-arrow-down', color: '#3b82f6', label: '입고', badgePrefix: 'To' }
                     : h.type === 'OUT'
                     ? { icon: 'fa-arrow-up', color: '#ef4444', label: '출고', badgePrefix: 'From' }
                     : h.type === 'MOVE'
-                    ? { icon: 'fa-right-left', color: '#f59e0b', label: '이동', badgePrefix: 'Move' }
+                    ? { icon: 'fa-arrow-right', color: '#f59e0b', label: '이동', badgePrefix: 'Move' }
                     : { icon: 'fa-right-left fa-rotate-90', color: '#0d9488', label: '조정', badgePrefix: 'In' };
 
                 const authorId = h.author || 'kipisa2095';

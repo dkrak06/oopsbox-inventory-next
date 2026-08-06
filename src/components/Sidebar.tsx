@@ -182,7 +182,7 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-move' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-move')}
             >
-              <i className="fa-solid fa-right-left menu-icon" style={{ color: '#f59e0b' }}></i>
+              <i className="fa-solid fa-arrow-right menu-icon" style={{ color: '#f59e0b' }}></i>
               <span className="menu-title">재고 이동</span>
             </div>
             <div
