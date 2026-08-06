@@ -175,7 +175,7 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-adjust' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-adjust')}
             >
-              <i className="fa-solid fa-arrows-up-down menu-icon" style={{ color: '#0d9488' }}></i>
+              <i className="fa-solid fa-right-left fa-rotate-90 menu-icon" style={{ color: '#0d9488' }}></i>
               <span className="menu-title">재고 조정</span>
             </div>
             <div
