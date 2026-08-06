@@ -1,13 +1,13 @@
 /**
  * [ProductForm 컴포넌트]
- * 역할: 입고출고 메뉴와 100% 동일한 커스텀 캘린더 피커(연/월 이동, 오늘 선택, 커스텀 격자)를 포함한 박스히어로 스타일 제품 추가 폼입니다.
- * 흐름: '고정'/'선택' 속성 가로 2열 배치, 숫자 스피너 화살표 적용, 날짜 선택 시 입고출고와 동일한 커스텀 달력 팝업 표출.
+ * 역할: 신규 제품 등록 및 기존 제품의 상세 정보/속성을 전체 수정하는 박스히어로 스타일 제품 등록/수정 폼입니다.
+ * 흐름: initialItem 전달 시 기존 제품 정보(SKU, 제품명, 바코드, 구매가, 판매가, 속성, 위치 재고)를 폼에 로드하고 수정 저장합니다.
  */
 
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { saveItem, getStoredAttributes, CustomAttribute } from '@/lib/storage';
+import { saveItem, updateItem, getStoredAttributes, CustomAttribute, Item } from '@/lib/storage';
 
 // 위치별 재고 데이터 타입 정의
 interface LocationStock {
@@ -236,65 +236,130 @@ function CustomDatePicker({
 }
 
 export default function ProductForm({
+  initialItem,
   onSuccess,
   onEditAttributes,
   isModal = false,
   onCancel,
 }: {
+  initialItem?: Item | null;
   onSuccess?: () => void;
   onEditAttributes?: () => void;
   isModal?: boolean;
   onCancel?: () => void;
 }) {
-  // 기본 제품 정보 상태
-  const [sku, setSku] = useState<string>('SKU-' + Math.random().toString(36).substring(2, 10).toUpperCase());
-  const [productName, setProductName] = useState<string>('');
-  const [barcode, setBarcode] = useState<string>('');
-  const [purchasePrice, setPurchasePrice] = useState<number | string>('');
-  const [sellingPrice, setSellingPrice] = useState<number | string>('');
+  // 기본 제품 정보 상태 (수정 모드일 경우 initialItem 값으로 설정, 신규 등록이면 기본값 생성)
+  const [sku, setSku] = useState<string>(initialItem?.sku || 'SKU-' + Math.random().toString(36).substring(2, 10).toUpperCase());
+  const [productName, setProductName] = useState<string>(initialItem?.name || '');
+  const [barcode, setBarcode] = useState<string>(initialItem?.barcode || '');
+  const [purchasePrice, setPurchasePrice] = useState<number | string>(initialItem?.purchase_price ?? '');
+  const [sellingPrice, setSellingPrice] = useState<number | string>(initialItem?.selling_price ?? '');
 
   // 등록된 속성 전체 목록
   const [allAttributes, setAllAttributes] = useState<CustomAttribute[]>([]);
 
-  // 현재 제품 폼에 표출할 선택된 '선택 속성' ID 목록
-  const [activeOptionalAttrIds, setActiveOptionalAttrIds] = useState<string[]>([]);
+  // 현재 제품 폼에 표출할 선택된 속성 ID 목록 (고정/선택 구분없이 개별 폼 단위 필드 추가/제거 지원)
+  const [activeFormAttrIds, setActiveFormAttrIds] = useState<string[]>([]);
 
   // 속성별 입력값 저장 상태 ({ [attrId]: value })
-  const [dynamicAttrValues, setDynamicAttrValues] = useState<{ [attrId: string]: string }>({});
+  const [dynamicAttrValues, setDynamicAttrValues] = useState<{ [attrId: string]: string }>({
+    '카테고리': initialItem?.category || '',
+    '브랜드': initialItem?.brand || '',
+  });
 
   // 선택 속성 추가 팝업/드롭다운 상태
   const [isAttrDropdownOpen, setIsAttrDropdownOpen] = useState<boolean>(false);
 
-  // 위치별 수량 배열 상태 (초기 위치 지정 안 됨)
-  const [locations, setLocations] = useState<LocationStock[]>([]);
+  // 위치별 수량 배열 상태
+  const [locations, setLocations] = useState<LocationStock[]>(
+    initialItem?.locations
+      ? Object.entries(initialItem.locations).map(([name, quantity]) => ({
+          id: Math.random().toString(),
+          name,
+          quantity,
+        }))
+      : []
+  );
 
   // 위치 검색 드롭다운 상태
   const [isLocDropdownOpen, setIsLocDropdownOpen] = useState<boolean>(false);
   const [locSearchQuery, setLocSearchQuery] = useState<string>('');
   const availableLocationPresets = ['기본 위치', 'DD', 'FFF', 'A창고', 'B창고'];
 
-  // 컴포넌트 마운트 시 저장소에서 속성 로드
+  // 컴포넌트 마운트 및 initialItem 변경 시 저장소에서 속성 로드 및 폼 데이터 갱신
   useEffect(() => {
     const stored = getStoredAttributes();
-    setAllAttributes(stored);
-  }, []);
+    // Soft Delete(is_deleted) 및 노출 꺼짐(is_visible: false) 속성은 등록/수정 폼 노출 목록에서 제외합니다.
+    const activeStored = stored.filter((attr) => !attr.is_deleted && attr.is_visible !== false);
+    setAllAttributes(activeStored);
 
-  // 동적 속성 값 변경 핸들러
+    const attrVals: { [attrId: string]: string } = {};
+
+    if (initialItem) {
+      setSku(initialItem.sku || '');
+      setProductName(initialItem.name || '');
+      setBarcode(initialItem.barcode || '');
+      setPurchasePrice(initialItem.purchase_price ?? '');
+      setSellingPrice(initialItem.selling_price ?? '');
+
+      // 기존 속성 데이터 복원 (동일한 이름을 가진 속성도 ID 기반으로 각각 상이하게 매핑)
+      stored.forEach((attr) => {
+        let val = '';
+        if (initialItem.attributes) {
+          val = initialItem.attributes[attr.id] || initialItem.attributes[attr.name] || '';
+        }
+        if (!val) {
+          if (attr.name === '카테고리') val = initialItem.category || '';
+          if (attr.name === '브랜드') val = initialItem.brand || '';
+          if (attr.name === '주 거래처') val = initialItem.partner || '';
+        }
+        if (val) {
+          attrVals[attr.id] = val;
+        }
+      });
+
+      setDynamicAttrValues(attrVals);
+
+      // 위치별 수량 로드
+      if (initialItem.locations) {
+        const locs: LocationStock[] = Object.entries(initialItem.locations).map(([name, qty]) => ({
+          id: Math.random().toString(),
+          name,
+          quantity: qty,
+        }));
+        setLocations(locs);
+      }
+    }
+
+    // 폼 초기 활성 속성 ID 설정 (고정 속성 + 기존 입력값이 존재하는 속성)
+    const initialActiveIds: string[] = [];
+    activeStored.forEach((attr) => {
+      if (attr.mode === '고정' || (initialItem && attrVals[attr.id])) {
+        initialActiveIds.push(attr.id);
+      }
+    });
+    setActiveFormAttrIds(initialActiveIds);
+  }, [initialItem]);
+
+  // 동적 속성 값 변경 핸들러 (오직 고유한 attrId만을 Key로 다루어 중복 이름 동시 반응 버그 완벽 방지)
   const handleAttrValueChange = (attrId: string, val: string) => {
-    setDynamicAttrValues((prev) => ({ ...prev, [attrId]: val }));
+    setDynamicAttrValues((prev) => ({
+      ...prev,
+      [attrId]: val,
+    }));
   };
 
-  // 선택 속성 항목 폼에 추가 함수
-  const handleAddOptionalAttr = (attrId: string) => {
-    if (!activeOptionalAttrIds.includes(attrId)) {
-      setActiveOptionalAttrIds((prev) => [...prev, attrId]);
+  // 속성 항목 폼에 추가 함수 (제거했던 고정 속성 및 미사용 선택 속성 모두 재추가 가능)
+  const handleAddFormAttr = (attrId: string) => {
+    if (!activeFormAttrIds.includes(attrId)) {
+      setActiveFormAttrIds((prev) => [...prev, attrId]);
     }
     setIsAttrDropdownOpen(false);
   };
 
-  // 선택 속성 폼에서 제거 함수
-  const handleRemoveOptionalAttr = (attrId: string) => {
-    setActiveOptionalAttrIds((prev) => prev.filter((id) => id !== attrId));
+  // 개별 속성 폼에서 제거 함수 (고정/선택 구분 없이 개별 제품 폼 단위 제거 지원)
+  const handleRemoveFormAttr = (attrId: string) => {
+    setActiveFormAttrIds((prev) => prev.filter((id) => id !== attrId));
     setDynamicAttrValues((prev) => {
       const next = { ...prev };
       delete next[attrId];
@@ -348,7 +413,7 @@ export default function ProductForm({
     setLocations((prev) => prev.filter((loc) => loc.id !== id));
   };
 
-  // 폼 제출 이벤트 핸들러
+  // 폼 제출 이벤트 핸들러 (수정 모드이면 updateItem, 신규 모드이면 saveItem 수행)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -363,19 +428,48 @@ export default function ProductForm({
     const pPrice = typeof purchasePrice === 'number' ? purchasePrice : Number(purchasePrice) || 0;
     const sPrice = typeof sellingPrice === 'number' ? sellingPrice : Number(sellingPrice) || 0;
 
-    saveItem({
+    // 전체 동적 속성 맵 구성 (현재 폼에 활성화되어 포함된 activeFormAttrIds 속성만 저장)
+    const attributesObj: { [key: string]: string } = {};
+    let categoryVal = '';
+    let brandVal = '';
+    let partnerVal = '';
+
+    allAttributes.forEach((attr) => {
+      // 폼에서 ✕ 버튼으로 제외된 속성은 수집에서 빠져 DB 레코드가 삭제 처리됩니다.
+      if (activeFormAttrIds.includes(attr.id)) {
+        const val = dynamicAttrValues[attr.id] || '';
+        attributesObj[attr.id] = val;
+        attributesObj[attr.name] = val; // 하위 호환성 유지용 이름 키 병행
+        if (attr.name === '카테고리') categoryVal = val;
+        if (attr.name === '브랜드') brandVal = val;
+        if (attr.name === '주 거래처') partnerVal = val;
+      }
+    });
+
+    const itemPayload = {
       sku,
       name: productName,
       barcode,
-      category: dynamicAttrValues['카테고리'] || '',
-      brand: dynamicAttrValues['브랜드'] || '',
+      category: categoryVal,
+      brand: brandVal,
+      partner: partnerVal,
       purchase_price: pPrice,
       selling_price: sPrice,
       locations: locMap,
       total_quantity: totalQty,
-    });
+      attributes: attributesObj,
+    };
 
-    alert(`'${productName}' 제품이 실제로 등록되었습니다!`);
+    if (initialItem) {
+      // 1. 기존 제품 수정 처리
+      updateItem(initialItem.id, itemPayload);
+      alert(`'${productName}' 제품 정보가 성공적으로 수정되었습니다!`);
+    } else {
+      // 2. 신규 제품 추가 처리
+      saveItem(itemPayload);
+      alert(`'${productName}' 제품이 성공적으로 등록되었습니다!`);
+    }
+
     if (onSuccess) onSuccess();
   };
 
@@ -385,7 +479,7 @@ export default function ProductForm({
     setProductName('');
     setBarcode('');
     setDynamicAttrValues({});
-    setActiveOptionalAttrIds([]);
+    setActiveFormAttrIds(allAttributes.filter((attr) => attr.mode === '고정').map((a) => a.id));
     setPurchasePrice('');
     setSellingPrice('');
     setLocations([]);
@@ -393,15 +487,11 @@ export default function ProductForm({
     setLocSearchQuery('');
   };
 
-  // '고정' 속성과 사용자가 추가한 '선택' 속성 합친 표출 목록
-  const visibleAttributes = allAttributes.filter(
-    (attr) => attr.mode === '고정' || activeOptionalAttrIds.includes(attr.id)
-  );
+  // 현재 제품 폼에 포함되어 표출되는 속성 목록
+  const visibleAttributes = allAttributes.filter((attr) => activeFormAttrIds.includes(attr.id));
 
-  // 아직 추가하지 않은 '선택' 속성 목록
-  const availableOptionalAttributes = allAttributes.filter(
-    (attr) => attr.mode === '선택' && !activeOptionalAttrIds.includes(attr.id)
-  );
+  // 현재 폼에 포함되지 않은 추가 가능 속성 목록 (제거한 고정 속성 + 미사용 선택 속성 모두 포함)
+  const availableAddAttributes = allAttributes.filter((attr) => !activeFormAttrIds.includes(attr.id));
 
   return (
     <div
@@ -416,9 +506,11 @@ export default function ProductForm({
       {/* 일반 페이지일 때만 서브 타이틀 및 메인 폼 헤더 표시 (모달일 때는 이중 헤더 방지를 위해 숨김) */}
       {!isModal && (
         <header className="form-header" style={{ marginBottom: '24px' }}>
-          <span className="sub-title" style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 500 }}>제품목록</span>
+          <span className="sub-title" style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 500 }}>제품목록 &gt; {initialItem ? '제품 수정' : '제품 추가'}</span>
           <div className="title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-            <h1 className="main-title" style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>제품 추가</h1>
+            <h1 className="main-title" style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              {initialItem ? '제품 수정' : '제품 추가'}
+            </h1>
             <button type="button" className="btn-text" onClick={handleReset} style={{ border: 'none', background: 'none', color: '#94a3b8', fontSize: '13px', cursor: 'pointer' }}>
               초기화
             </button>
@@ -543,70 +635,72 @@ export default function ProductForm({
 
           {/* 속성 목록 - 좌측 라벨 수평 옆 배치 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {visibleAttributes.map((attr) => (
-              <div key={attr.id} style={{ display: 'flex', alignItems: 'center' }}>
-                {/* 좌측 라벨 영역 (150px 고정 폭) */}
-                <label style={{ width: '150px', minWidth: '150px', fontSize: '14px', fontWeight: 600, color: '#334155' }}>
-                  {attr.name}
-                  {attr.mode === '선택' && (
-                    <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 500, marginLeft: '4px' }}>(선택)</span>
-                  )}
-                </label>
+            {visibleAttributes.map((attr) => {
+              const currentVal = dynamicAttrValues[attr.id] || '';
+              return (
+                <div key={attr.id} style={{ display: 'flex', alignItems: 'center' }}>
+                  {/* 좌측 라벨 영역 (150px 고정 폭) */}
+                  <label style={{ width: '150px', minWidth: '150px', fontSize: '14px', fontWeight: 600, color: '#334155' }}>
+                    {attr.name}
+                    {attr.mode === '선택' && (
+                      <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 500, marginLeft: '4px' }}>(선택)</span>
+                    )}
+                  </label>
 
-                {/* 우측 입력 필드 영역 */}
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {/* 1. 텍스트 종류 */}
-                  {attr.type === '텍스트' && (
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="텍스트 입력"
-                      value={dynamicAttrValues[attr.id] || ''}
-                      onChange={(e) => handleAttrValueChange(attr.id, e.target.value)}
-                      style={{ flex: 1, padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
-                    />
-                  )}
-
-                  {/* 2. 숫자 종류 (숫자 전용 + 스피너 화살표 활성화) */}
-                  {attr.type === '숫자' && (
-                    <input
-                      type="number"
-                      className="form-input"
-                      placeholder="숫자 입력"
-                      value={dynamicAttrValues[attr.id] || ''}
-                      onChange={(e) => handleAttrValueChange(attr.id, e.target.value)}
-                      style={{ flex: 1, padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', appearance: 'auto' }}
-                    />
-                  )}
-
-                  {/* 3. 날짜 종류 (입고출고 메뉴와 100% 동일한 커스텀 달력 연동) */}
-                  {attr.type === '날짜' && (
-                    <CustomDatePicker
-                      value={dynamicAttrValues[attr.id] || ''}
-                      onChange={(dateStr) => handleAttrValueChange(attr.id, dateStr)}
-                    />
-                  )}
-
-                  {/* 4. 바코드 종류 */}
-                  {attr.type === '바코드' && (
-                    <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
+                  {/* 우측 입력 필드 영역 */}
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* 1. 텍스트 종류 */}
+                    {attr.type === '텍스트' && (
                       <input
                         type="text"
                         className="form-input"
-                        placeholder="바코드 입력"
-                        value={dynamicAttrValues[attr.id] || ''}
+                        placeholder="텍스트 입력"
+                        value={currentVal}
                         onChange={(e) => handleAttrValueChange(attr.id, e.target.value)}
                         style={{ flex: 1, padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
                       />
-                      <button
-                        type="button"
-                        onClick={() => generateAttrBarcode(attr.id)}
-                        style={{ padding: '0 16px', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                      >
-                        자동 생성
-                      </button>
-                    </div>
-                  )}
+                    )}
+
+                    {/* 2. 숫자 종류 (숫자 전용 + 스피너 화살표 활성화) */}
+                    {attr.type === '숫자' && (
+                      <input
+                        type="number"
+                        className="form-input"
+                        placeholder="숫자 입력"
+                        value={currentVal}
+                        onChange={(e) => handleAttrValueChange(attr.id, e.target.value)}
+                        style={{ flex: 1, padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', appearance: 'auto' }}
+                      />
+                    )}
+
+                    {/* 3. 날짜 종류 (입고출고 메뉴와 100% 동일한 커스텀 달력 연동) */}
+                    {attr.type === '날짜' && (
+                      <CustomDatePicker
+                        value={currentVal}
+                        onChange={(dateStr) => handleAttrValueChange(attr.id, dateStr)}
+                      />
+                    )}
+
+                    {/* 4. 바코드 종류 */}
+                    {attr.type === '바코드' && (
+                      <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="바코드 입력"
+                          value={currentVal}
+                          onChange={(e) => handleAttrValueChange(attr.id, e.target.value)}
+                          style={{ flex: 1, padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => generateAttrBarcode(attr.id)}
+                          style={{ padding: '0 16px', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          자동 생성
+                        </button>
+                      </div>
+                    )}
 
                   {/* 5. 파일 종류 */}
                   {attr.type === '파일' && (
@@ -615,44 +709,43 @@ export default function ProductForm({
                     </div>
                   )}
 
-                  {/* '선택' 속성의 경우 삭제 ✕ 버튼 */}
-                  {attr.mode === '선택' && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveOptionalAttr(attr.id)}
-                      style={{ border: 'none', background: 'none', color: '#94a3b8', fontSize: '14px', cursor: 'pointer', padding: '0 4px' }}
-                      title="속성 제거"
-                    >
-                      ✕
-                    </button>
-                  )}
+                  {/* 개별 필드 제거 (✕) 버튼 (고정/선택 구분 없이 개별 폼 단위 필드 제거) */}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFormAttr(attr.id)}
+                    style={{ border: 'none', background: 'none', color: '#94a3b8', fontSize: '14px', cursor: 'pointer', padding: '0 4px' }}
+                    title="폼에서 이 속성 필드 제거"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
 
-          {/* 선택 속성 추가 버튼 드롭다운 */}
-          {availableOptionalAttributes.length > 0 && (
+          {/* 속성 추가 버튼 드롭다운 (제거했던 고정 속성 + 미사용 선택 속성 목록) */}
+          {availableAddAttributes.length > 0 && (
             <div style={{ marginTop: '16px', marginLeft: '150px', position: 'relative', maxWidth: '300px' }}>
               <button
                 type="button"
                 onClick={() => setIsAttrDropdownOpen((prev) => !prev)}
                 style={{ border: '1px dashed #3b82f6', backgroundColor: '#eff6ff', color: '#2563eb', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                <span>+ 선택 속성 추가</span>
+                <span>+ 속성 추가</span>
                 <span style={{ fontSize: '10px' }}>{isAttrDropdownOpen ? '▲' : '▼'}</span>
               </button>
 
               {isAttrDropdownOpen && (
                 <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: '100%', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12)', zIndex: 200, overflow: 'hidden' }}>
-                  {availableOptionalAttributes.map((attr) => (
+                  {availableAddAttributes.map((attr) => (
                     <div
                       key={attr.id}
-                      onClick={() => handleAddOptionalAttr(attr.id)}
+                      onClick={() => handleAddFormAttr(attr.id)}
                       style={{ padding: '10px 14px', fontSize: '13px', color: '#1e293b', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
                       <span style={{ fontWeight: 600 }}>{attr.name}</span>
-                      <span style={{ fontSize: '11px', color: '#64748b' }}>({attr.type})</span>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>({attr.type} · {attr.mode})</span>
                     </div>
                   ))}
                 </div>

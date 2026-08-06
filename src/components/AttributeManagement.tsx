@@ -12,14 +12,18 @@ import {
   saveAttribute,
   updateAttribute,
   deleteAttribute,
+  softDeleteAttribute,
+  hardDeleteAttributeAndClearProductValues,
+  toggleAttributeVisibility,
   saveAllAttributes,
+  getStoredItems,
   CustomAttribute,
   AttributeType,
   AttributeMode,
 } from '@/lib/storage';
 
 export default function AttributeManagement() {
-  // 1. 등록된 속성 목록 상태
+  // 1. 등록된 속성 목록 상태 (Soft Delete 되지 않은 속성만 표출)
   const [attributes, setAttributes] = useState<CustomAttribute[]>([]);
 
   // 2. 드래그 앤 드롭 순서 변경 관련 상태
@@ -38,9 +42,20 @@ export default function AttributeManagement() {
   const [editType, setEditType] = useState<AttributeType>('텍스트');
   const [editMode, setEditMode] = useState<AttributeMode>('선택');
 
-  // 컴포넌트 마운트 시 LocalStorage에서 속성 데이터 로드
+  // 5. 삭제 확인 모달 제어 상태 (요구사항 1, 2, 3 구현)
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [targetAttr, setTargetAttr] = useState<CustomAttribute | null>(null);
+  const [usedProductCount, setUsedProductCount] = useState<number>(0);
+  const [deleteOption, setDeleteOption] = useState<'OPTION_A' | 'OPTION_B'>('OPTION_A');
+
+  // 컴포넌트 마운트 시 LocalStorage에서 속성 데이터 로드 (Soft Delete된 속성은 목록에서 제외)
+  const loadAttributes = () => {
+    const loaded = getStoredAttributes();
+    setAttributes(loaded.filter((attr) => !attr.is_deleted));
+  };
+
   useEffect(() => {
-    setAttributes(getStoredAttributes());
+    loadAttributes();
   }, []);
 
   // ---------------- 드래그 앤 드롭 (Drag & Drop) 핸들러 ---------------- //
@@ -89,14 +104,13 @@ export default function AttributeManagement() {
       alert('속성 종류를 선택해 주세요.');
       return;
     }
-    // 동일한 이름의 속성도 제한 없이 문제없이 생성할 수 있도록 허용합니다.
 
     const updated = saveAttribute({
       name: newName.trim(),
       type: selectedType as AttributeType,
       mode: selectedMode,
     });
-    setAttributes(updated);
+    setAttributes(updated.filter((a) => !a.is_deleted));
     setNewName('');
     setSelectedType('선택하세요');
     setSelectedMode('선택');
@@ -118,16 +132,67 @@ export default function AttributeManagement() {
       return;
     }
     const updated = updateAttribute(id, editName.trim(), editType, editMode);
-    setAttributes(updated);
+    setAttributes(updated.filter((a) => !a.is_deleted));
     setEditingId(null);
   };
 
-  // 속성 삭제 처리 함수
-  const handleDelete = (id: string, name: string) => {
-    if (confirm(`'${name}' 속성을 삭제하시겠습니까?`)) {
-      const updated = deleteAttribute(id);
-      setAttributes(updated);
+  // 속성 삭제 버튼 클릭 핸들러 (사용 중인 제품 0개 vs 1개 이상 분기 처리)
+  const handleDeleteClick = (attr: CustomAttribute) => {
+    const items = getStoredItems();
+    
+    // 사용 중인 제품 개수 연산:
+    // 1) '고정' 속성: 제품 폼에 항상 기본 표출되므로 제품이 1개 이상 존재하면 모든 제품이 이 속성을 사용 중인 것으로 간주
+    // 2) '선택' 속성: 제품 레코드의 attributes에 키(ID/이름)가 존재하거나 값이 할당되어 있는 제품 개수 집계
+    let usedCount = 0;
+    if (attr.mode === '고정') {
+      usedCount = items.length;
+    } else {
+      usedCount = items.filter((item) => {
+        if (!item.attributes) return false;
+        const valById = item.attributes[attr.id];
+        const valByName = item.attributes[attr.name];
+        return valById !== undefined || valByName !== undefined;
+      }).length;
     }
+
+    if (usedCount === 0) {
+      // 1. 해당 속성을 사용 중인 제품이 0개인 경우: 별도 모달 없이 즉시 삭제
+      if (confirm(`'${attr.name}' 속성을 삭제하시겠습니까?`)) {
+        const updated = deleteAttribute(attr.id);
+        setAttributes(updated.filter((a) => !a.is_deleted));
+      }
+    } else {
+      // 2. 해당 속성을 사용 중인 제품이 1개 이상인 경우: confirmation 모달 팝업 출현
+      setTargetAttr(attr);
+      setUsedProductCount(usedCount);
+      setDeleteOption('OPTION_A'); // 기본값: 옵션 A("기존 제품 속성 유지 (신규 숨김)")
+      setShowDeleteModal(true);
+    }
+  };
+
+  // 모달 내 삭제 실행 버튼 클릭 핸들러
+  const handleConfirmDelete = () => {
+    if (!targetAttr) return;
+
+    if (deleteOption === 'OPTION_A') {
+      // 옵션 A: "기존 제품 속성 유지 (신규 숨김)" -> Soft Delete (is_deleted: true)
+      softDeleteAttribute(targetAttr.id);
+      alert(`'${targetAttr.name}' 속성이 신규 폼에서 숨김 처리되었습니다. (기존 제품 데이터는 보존됩니다)`);
+    } else if (deleteOption === 'OPTION_B') {
+      // 옵션 B: "모든 제품에서 속성 완벽 삭제" -> Hard Delete + 기존 제품 레코드 내 속성값 삭제
+      hardDeleteAttributeAndClearProductValues(targetAttr.id, targetAttr.name);
+      alert(`'${targetAttr.name}' 속성 및 기존 ${usedProductCount}개 제품 내 해당 속성 데이터가 완전히 삭제되었습니다.`);
+    }
+
+    loadAttributes();
+    setShowDeleteModal(false);
+    setTargetAttr(null);
+  };
+
+  // 노출 여부 토글 (On/Off) 즉시 변경 핸들러
+  const handleToggleVisibility = (id: string, currentVisible: boolean) => {
+    const updated = toggleAttributeVisibility(id, !currentVisible);
+    setAttributes(updated.filter((a) => !a.is_deleted));
   };
 
   return (
@@ -154,7 +219,7 @@ export default function AttributeManagement() {
             cursor: 'pointer',
             fontWeight: 600,
           }}
-          title="'고정' 속성은 제품 추가 시 항상 표출되고, '선택' 속성은 필요할 때 선택해 입력할 수 있습니다."
+          title="'고정' 속성은 제품 추가 시 항상 표출되고, '선택' 속성은 필요할 때 선택해 입력할 수 있습니다. 노출 여부를 꺼두시면 등록 폼에서 숨김 처리됩니다."
         >
           ?
         </span>
@@ -162,11 +227,11 @@ export default function AttributeManagement() {
 
       {/* 속성 관리 테이블 메인 영역 */}
       <div style={{ width: '100%' }}>
-        {/* 테이블 헤더 (이름 | 종류 | 방식 | 기능버튼) */}
+        {/* 테이블 헤더 (드래그 | 이름 | 종류 | 방식 | 노출 여부 | 관리) */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '40px 1fr 140px 140px 90px',
+            gridTemplateColumns: '40px 1fr 120px 120px 100px 80px',
             padding: '12px 16px',
             borderBottom: '1px solid #e2e8f0',
             fontSize: '14px',
@@ -178,6 +243,7 @@ export default function AttributeManagement() {
           <div>이름</div>
           <div>종류</div>
           <div>방식</div>
+          <div style={{ textAlign: 'center' }}>노출 여부</div>
           <div style={{ textAlign: 'right' }}></div>
         </div>
 
@@ -196,7 +262,7 @@ export default function AttributeManagement() {
               onDragEnd={handleDragEnd}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '40px 1fr 140px 140px 90px',
+                gridTemplateColumns: '40px 1fr 120px 120px 100px 80px',
                 alignItems: 'center',
                 padding: '14px 16px',
                 borderBottom: isDragOver ? '2px solid #3b82f6' : '1px solid #f1f5f9',
@@ -321,7 +387,61 @@ export default function AttributeManagement() {
                 )}
               </div>
 
-              {/* 5열: 삭제 및 완료 버튼 */}
+              {/* 5열: 노출 여부 토글 스위치 (On/Off) */}
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => handleToggleVisibility(attr.id, attr.is_visible !== false)}
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '4px',
+                  }}
+                  title={attr.is_visible !== false ? '노출 중 (클릭 시 등록 폼에서 숨김)' : '숨김 중 (클릭 시 등록 폼에 노출)'}
+                >
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '20px',
+                      borderRadius: '10px',
+                      backgroundColor: attr.is_visible !== false ? '#3b82f6' : '#cbd5e1',
+                      position: 'relative',
+                      transition: 'background-color 0.2s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '50%',
+                        backgroundColor: '#ffffff',
+                        position: 'absolute',
+                        top: '2px',
+                        left: attr.is_visible !== false ? '18px' : '2px',
+                        transition: 'left 0.2s ease',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      }}
+                    />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: attr.is_visible !== false ? '#2563eb' : '#64748b',
+                      width: '24px',
+                    }}
+                  >
+                    {attr.is_visible !== false ? 'On' : 'Off'}
+                  </span>
+                </button>
+              </div>
+
+              {/* 6열: 삭제 및 완료 버튼 */}
               <div style={{ textAlign: 'right' }}>
                 {editingId === attr.id ? (
                   <button
@@ -343,7 +463,7 @@ export default function AttributeManagement() {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => handleDelete(attr.id, attr.name)}
+                    onClick={() => handleDeleteClick(attr)}
                     style={{
                       padding: '4px 14px',
                       borderRadius: '6px',
@@ -368,7 +488,7 @@ export default function AttributeManagement() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '40px 1fr 140px 140px 140px',
+              gridTemplateColumns: '40px 1fr 120px 120px 100px 80px',
               alignItems: 'center',
               padding: '12px 16px',
               borderBottom: '1px solid #f1f5f9',
@@ -508,6 +628,176 @@ export default function AttributeManagement() {
           </div>
         )}
       </div>
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* 속성 삭제 확인 confirmation 모달 (요구사항 1, 2, 3 완전 충족) */}
+      {/* ---------------------------------------------------------------------- */}
+      {showDeleteModal && targetAttr && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '500px',
+              maxWidth: '90%',
+              padding: '28px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            {/* 모달 헤더 (요구사항 3: 모달 제목 "속성 삭제 확인") */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#f59e0b' }}>⚠️</span> 속성 삭제 확인
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                style={{ border: 'none', background: 'none', fontSize: '18px', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 본문 문구 (요구사항 3: 현재 N개의 제품이 [속성명] 속성을 사용하고 있습니다. 처리 방식을 선택해 주세요.) */}
+            <div
+              style={{
+                fontSize: '14px',
+                color: '#334155',
+                lineHeight: '1.6',
+                marginBottom: '20px',
+                backgroundColor: '#f8fafc',
+                padding: '14px 16px',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              현재 <strong style={{ color: '#ef4444' }}>{usedProductCount}개</strong>의 제품이{' '}
+              <strong style={{ color: '#2563eb' }}>[{targetAttr.name}]</strong> 속성을 사용하고 있습니다. 처리 방식을 선택해 주세요.
+            </div>
+
+            {/* 라디오 버튼 선택지 그룹 (요구사항 2: 3가지 선택지 중 A, B 라디오 옵션) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+              {/* 옵션 A (기본값 / Radio Option 1): "기존 제품 속성 유지 (신규 숨김)" */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  border: `2px solid ${deleteOption === 'OPTION_A' ? '#3b82f6' : '#cbd5e1'}`,
+                  backgroundColor: deleteOption === 'OPTION_A' ? '#eff6ff' : '#ffffff',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="delete_option"
+                  value="OPTION_A"
+                  checked={deleteOption === 'OPTION_A'}
+                  onChange={() => setDeleteOption('OPTION_A')}
+                  style={{ marginTop: '3px', accentColor: '#3b82f6', width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: deleteOption === 'OPTION_A' ? '#1e40af' : '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    기존 제품 속성 유지 (신규 숨김)
+                    <span style={{ fontSize: '11px', backgroundColor: '#3b82f6', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>권장 / 기본값</span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', lineHeight: 1.4 }}>
+                    기존에 등록된 제품 상세 페이지에서는 속성 데이터가 그대로 보존되어 표기되며, 신규 제품 등록/수정 폼에서는 해당 속성이 더 이상 노출되지 않습니다.
+                  </div>
+                </div>
+              </label>
+
+              {/* 옵션 B (Radio Option 2): "모든 제품에서 속성 완벽 삭제" */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  border: `2px solid ${deleteOption === 'OPTION_B' ? '#ef4444' : '#cbd5e1'}`,
+                  backgroundColor: deleteOption === 'OPTION_B' ? '#fef2f2' : '#ffffff',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="delete_option"
+                  value="OPTION_B"
+                  checked={deleteOption === 'OPTION_B'}
+                  onChange={() => setDeleteOption('OPTION_B')}
+                  style={{ marginTop: '3px', accentColor: '#ef4444', width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: deleteOption === 'OPTION_B' ? '#991b1b' : '#1e293b' }}>
+                    모든 제품에서 속성 완벽 삭제
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px', lineHeight: 1.4, fontWeight: 500 }}>
+                    ⚠️ 경고: 속성 정의 삭제와 함께 기존 {usedProductCount}개 제품에 등록된 해당 속성값 레코드까지 완전히 삭제되며 복구할 수 없습니다.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {/* 모달 하단 버튼 그룹 (요구사항 2: 옵션 C 취소 버튼 포함) */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              {/* 옵션 C (취소 버튼): "제거하지 않는다" */}
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#475569',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                제거하지 않는다 (취소)
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: deleteOption === 'OPTION_B' ? '#ef4444' : '#3b82f6',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                }}
+              >
+                삭제 처리 실행
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

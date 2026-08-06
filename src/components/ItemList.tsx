@@ -10,17 +10,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getStoredItems, deleteItem, updateItem, Item } from '@/lib/storage';
+import { getStoredItems, deleteItem, updateItem, getStoredAttributes, CustomAttribute, Item } from '@/lib/storage';
 
 interface ItemListProps {
   onAddNew: () => void;
+  onEditProduct?: (item: Item) => void;
   onNavigate?: (path: string, item?: Item, loc?: string, partner?: string) => void;
   onSelectProduct?: (item: Item) => void;
 }
 
-export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: ItemListProps) {
+export default function ItemList({ onAddNew, onEditProduct, onNavigate, onSelectProduct }: ItemListProps) {
   // 제품 목록 상태
   const [items, setItems] = useState<Item[]>([]);
+  // 등록된 시스템 커스텀 속성 정의 목록
+  const [definedAttributes, setDefinedAttributes] = useState<CustomAttribute[]>([]);
   // 선택된 제품 ID 상태
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   // 검색어 상태
@@ -54,10 +57,11 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
   // ··· 더보기 메뉴 드롭다운 상태
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
 
-  // 마운트 시 저장소에서 제품 데이터 로드 (강제 고정 선택 제거)
+  // 마운트 시 저장소에서 제품 데이터 및 속성 정의 로드
   const loadData = () => {
     const loaded = getStoredItems();
     setItems(loaded);
+    setDefinedAttributes(getStoredAttributes());
   };
 
   useEffect(() => {
@@ -543,7 +547,13 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                 <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                   <button
                     type="button"
-                    onClick={() => handleOpenProductEdit(selectedItem)}
+                    onClick={() => {
+                      if (onEditProduct) {
+                        onEditProduct(selectedItem);
+                      } else {
+                        handleOpenProductEdit(selectedItem);
+                      }
+                    }}
                     style={{ padding: '7px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#334155', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                   >
                     ✏️ 수정
@@ -663,25 +673,47 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                 </button>
               </div>
 
-              {/* 3. 제품 속성란 나열 (카테고리, 브랜드, 거래처 등) */}
+              {/* 3. 제품 속성란 동적 나열 (등록된 속성 및 제품에 설정된 실제 속성 100% 동적 렌더링) */}
               <div style={{ marginBottom: '20px', backgroundColor: '#f8fafc', padding: '14px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <i className="fa-solid fa-tags" style={{ color: '#64748b' }}></i>
                   <span>제품 속성</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px 16px' }}>
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '3px' }}>카테고리</div>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{selectedItem.category || '-'}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '3px' }}>브랜드</div>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{selectedItem.brand || '-'}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '3px' }}>주 거래처</div>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{selectedItem.partner || '-'}</div>
-                  </div>
+                  {(() => {
+                    const displayList: { id: string; name: string; value: string }[] = [];
+
+                    // 시스템에 정의된 속성 목록을 고유 id 기반으로 1:1 매핑
+                    definedAttributes.forEach((attr) => {
+                      let val = '';
+                      if (attr.name === '카테고리') {
+                        val = selectedItem.category || selectedItem.attributes?.[attr.id] || selectedItem.attributes?.['카테고리'] || '';
+                      } else if (attr.name === '브랜드') {
+                        val = selectedItem.brand || selectedItem.attributes?.[attr.id] || selectedItem.attributes?.['브랜드'] || '';
+                      } else {
+                        val = selectedItem.attributes?.[attr.id] || selectedItem.attributes?.[attr.name] || '';
+                      }
+
+                      if (attr.mode === '고정' || val) {
+                        displayList.push({
+                          id: attr.id,
+                          name: attr.name,
+                          value: val || '-',
+                        });
+                      }
+                    });
+
+                    if (displayList.length === 0) {
+                      return <div style={{ fontSize: '13px', color: '#94a3b8' }}>등록된 제품 속성이 없습니다.</div>;
+                    }
+
+                    return displayList.map((item) => (
+                      <div key={item.id}>
+                        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '3px' }}>{item.name}</div>
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{item.value}</div>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
 

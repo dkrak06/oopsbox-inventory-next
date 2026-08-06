@@ -20,6 +20,7 @@ export interface Item {
   updated_at: string;
   partner?: string; // 거래처
   history_count?: number; // 거래 횟수
+  attributes?: { [key: string]: string }; // 커스텀 동적 속성 (카테고리, 브랜드, 날짜, 바코드 등)
 }
 
 // 재고 변동 히스토리 인터페이스 (변동 전/후 재고, 작성자, 메모, 이동 위치 지원)
@@ -829,6 +830,8 @@ export interface CustomAttribute {
   mode?: AttributeMode;
   values?: string[];
   created_at: string;
+  is_deleted?: boolean; // 삭제 여부 플래그 (Soft Delete 지원)
+  is_visible?: boolean; // 노출 여부 플래그 (On/Off 토글 지원)
 }
 
 // [커스텀 속성] 데이터 조회 및 저장 함수
@@ -838,23 +841,25 @@ export const getStoredAttributes = (): CustomAttribute[] => {
     const data = localStorage.getItem(ATTRIBUTES_KEY);
     if (data) {
       const parsed: CustomAttribute[] = JSON.parse(data);
-      // 기존 데이터 호환성 마이그레이션 (type, mode 기본값 부여)
-      return parsed.map(attr => ({
+      // 기존 데이터 호환성 마이그레이션 (type, mode, is_visible 기본값 부여)
+      return parsed.map((attr) => ({
         ...attr,
         type: attr.type || '텍스트',
-        mode: attr.mode || (attr.name === '카테고리' || attr.name === '브랜드' ? '고정' : '선택')
+        mode: attr.mode || (attr.name === '카테고리' || attr.name === '브랜드' ? '고정' : '선택'),
+        is_deleted: attr.is_deleted || false,
+        is_visible: attr.is_visible !== undefined ? attr.is_visible : true,
       }));
     }
-    
+
     // 기본 샘플 데이터 (카테고리/브랜드는 '고정', 나머지는 '선택')
     const initial: CustomAttribute[] = [
-      { id: 'ATTR-1', name: '카테고리', type: '텍스트', mode: '고정', created_at: new Date().toISOString() },
-      { id: 'ATTR-2', name: '브랜드', type: '텍스트', mode: '고정', created_at: new Date().toISOString() },
-      { id: 'ATTR-3', name: '색상', type: '텍스트', mode: '선택', created_at: new Date().toISOString() },
-      { id: 'ATTR-4', name: '사이즈', type: '텍스트', mode: '선택', created_at: new Date().toISOString() },
-      { id: 'ATTR-5', name: '날짜', type: '날짜', mode: '선택', created_at: new Date().toISOString() },
-      { id: 'ATTR-6', name: '바코드', type: '바코드', mode: '선택', created_at: new Date().toISOString() },
-      { id: 'ATTR-7', name: '파일', type: '파일', mode: '선택', created_at: new Date().toISOString() }
+      { id: 'ATTR-1', name: '카테고리', type: '텍스트', mode: '고정', created_at: new Date().toISOString(), is_visible: true },
+      { id: 'ATTR-2', name: '브랜드', type: '텍스트', mode: '고정', created_at: new Date().toISOString(), is_visible: true },
+      { id: 'ATTR-3', name: '색상', type: '텍스트', mode: '선택', created_at: new Date().toISOString(), is_visible: true },
+      { id: 'ATTR-4', name: '사이즈', type: '텍스트', mode: '선택', created_at: new Date().toISOString(), is_visible: true },
+      { id: 'ATTR-5', name: '날짜', type: '날짜', mode: '선택', created_at: new Date().toISOString(), is_visible: true },
+      { id: 'ATTR-6', name: '바코드', type: '바코드', mode: '선택', created_at: new Date().toISOString(), is_visible: true },
+      { id: 'ATTR-7', name: '파일', type: '파일', mode: '선택', created_at: new Date().toISOString(), is_visible: true },
     ];
     localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(initial));
     return initial;
@@ -868,7 +873,8 @@ export const saveAttribute = (newAttr: { name: string; type: AttributeType; mode
   const created: CustomAttribute = {
     ...newAttr,
     id: 'ATTR-' + Date.now(),
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    is_visible: true,
   };
   const updated = [...current, created];
   localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(updated));
@@ -885,6 +891,72 @@ export const updateAttribute = (id: string, name: string, type: AttributeType, m
   });
   localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(updated));
   return updated;
+};
+
+// [노출 여부 토글 On/Off 변경 함수]
+export const toggleAttributeVisibility = (id: string, isVisible: boolean): CustomAttribute[] => {
+  const current = getStoredAttributes();
+  const updated = current.map((a) => {
+    if (a.id === id) {
+      return { ...a, is_visible: isVisible };
+    }
+    return a;
+  });
+  localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+// [옵션 A 처리 - Soft Delete] 기존 제품 데이터 유지, 신규 폼에서 숨김 처리
+export const softDeleteAttribute = (id: string): CustomAttribute[] => {
+  const current = getStoredAttributes();
+  const updated = current.map((a) => {
+    if (a.id === id) {
+      return { ...a, is_deleted: true };
+    }
+    return a;
+  });
+  localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+// [옵션 B 처리 - Hard Delete] 속성 정의 완전 삭제 및 기존 제품 레코드 내 해당 속성값 일괄 삭제
+export const hardDeleteAttributeAndClearProductValues = (id: string, name: string): CustomAttribute[] => {
+  // 1. 속성 정의 배열에서 완전 삭제
+  const currentAttrs = getStoredAttributes();
+  const updatedAttrs = currentAttrs.filter((a) => a.id !== id);
+  localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(updatedAttrs));
+
+  // 2. 기존 제품들의 attributes 레코드에서 해당 속성 ID 및 이름 제거
+  const items = getStoredItems();
+  let hasItemChanged = false;
+
+  const updatedItems = items.map((item) => {
+    if (item.attributes) {
+      const nextAttrs = { ...item.attributes };
+      let changed = false;
+
+      if (nextAttrs[id] !== undefined) {
+        delete nextAttrs[id];
+        changed = true;
+      }
+      if (name && nextAttrs[name] !== undefined) {
+        delete nextAttrs[name];
+        changed = true;
+      }
+
+      if (changed) {
+        hasItemChanged = true;
+        return { ...item, attributes: nextAttrs };
+      }
+    }
+    return item;
+  });
+
+  if (hasItemChanged) {
+    localStorage.setItem(ITEMS_KEY, JSON.stringify(updatedItems));
+  }
+
+  return updatedAttrs;
 };
 
 export const deleteAttribute = (id: string): CustomAttribute[] => {

@@ -39,6 +39,8 @@ export default function Home() {
 
   // 제품 목록에서 선택했던 최근 제품 기억 상태 (히어로박스 표준 UX 지원)
   const [lastSelectedProduct, setLastSelectedProduct] = useState<Item | null>(null);
+  // 전체 제품 수정 모드 전용 상태
+  const [editingProduct, setEditingProduct] = useState<Item | null>(null);
 
   // 제품 목록에서 입출고 폼으로 이동 시 선택된 제품, 위치, 거래처 연동 상태
   const [selectedMovementItem, setSelectedMovementItem] = useState<Item | null>(null);
@@ -295,7 +297,14 @@ export default function Home() {
             </div>
           ) : currentPath === 'items' ? (
             <ItemList
-              onAddNew={() => setCurrentPath('add-item')}
+              onAddNew={() => {
+                setEditingProduct(null);
+                setCurrentPath('add-item');
+              }}
+              onEditProduct={(item) => {
+                setEditingProduct(item);
+                setCurrentPath('add-item');
+              }}
               onSelectProduct={(item) => setLastSelectedProduct(item)}
               onNavigate={(path, item, loc, partner) => {
                 const targetItem = item || lastSelectedProduct || (items.length > 0 ? items[0] : null);
@@ -309,8 +318,10 @@ export default function Home() {
             />
           ) : currentPath === 'add-item' ? (
             <ProductForm
+              initialItem={editingProduct}
               onSuccess={() => {
                 refreshData();
+                setEditingProduct(null);
                 setCurrentPath('items');
               }}
               onEditAttributes={() => setCurrentPath('attributes')}
