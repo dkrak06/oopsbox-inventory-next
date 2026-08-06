@@ -175,7 +175,7 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-adjust' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-adjust')}
             >
-              <span className="menu-icon" style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '3px', marginRight: '2px' }}>
+              <span className="menu-icon" style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '3px' }}>
                 <svg
                   width="14"
                   height="14"
@@ -192,7 +192,7 @@ export default function Sidebar({
                   <path d="M9.5 10.5L12.5 13.5L15.5 10.5" />
                 </svg>
               </span>
-              <span className="menu-title">재고 조정</span>
+              <span className="menu-title" style={{ marginLeft: '-2px' }}>재고 조정</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'stock-move' ? 'active' : ''}`}
