@@ -374,9 +374,9 @@ export default function HistoryView() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {h.type === 'ADJUST' ? (
-                          <span style={{ color: typeTheme.color, display: 'inline-flex', alignItems: 'center', position: 'relative', width: '18px', height: '18px', justifyContent: 'center' }}>
-                            <i className="fa-solid fa-arrow-up" style={{ position: 'absolute', left: '0px', top: '0px', fontSize: '11px' }}></i>
-                            <i className="fa-solid fa-arrow-down" style={{ position: 'absolute', right: '0px', bottom: '0px', fontSize: '11px' }}></i>
+                          <span style={{ color: typeTheme.color, display: 'inline-flex', alignItems: 'center', position: 'relative', width: '13px', height: '16px' }}>
+                            <i className="fa-solid fa-arrow-up" style={{ position: 'absolute', left: '0px', top: '-1px', fontSize: '11px' }}></i>
+                            <i className="fa-solid fa-arrow-down" style={{ position: 'absolute', left: '5px', top: '3px', fontSize: '11px' }}></i>
                           </span>
                         ) : (
                           <i className={`fa-solid ${typeTheme.icon}`} style={{ color: typeTheme.color, fontSize: '15px' }}></i>
