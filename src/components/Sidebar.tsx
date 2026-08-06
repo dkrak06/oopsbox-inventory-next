@@ -175,14 +175,14 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-adjust' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-adjust')}
             >
-              <i className="fa-solid fa-sliders menu-icon"></i>
+              <i className="fa-solid fa-arrows-up-down menu-icon" style={{ color: '#0d9488' }}></i>
               <span className="menu-title">재고 조정</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'stock-move' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-move')}
             >
-              <i className="fa-solid fa-arrows-left-right menu-icon"></i>
+              <i className="fa-solid fa-arrow-right menu-icon" style={{ color: '#f59e0b' }}></i>
               <span className="menu-title">재고 이동</span>
             </div>
             <div

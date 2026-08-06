@@ -342,14 +342,14 @@ export default function HistoryView() {
               filteredHistories.map((h) => {
                 const isSelected = selectedHistory && selectedHistory.id === h.id;
 
-                // 스크린샷 2와 100% 동일한 유형별 테마 설정 (이동: 주황색 #f59e0b)
+                // 사용자 요구사항 반영: 입고(down), 출고(up), 조정(arrows-up-down), 이동(arrow-right)
                 const typeTheme =
                   h.type === 'IN'
                     ? { icon: 'fa-arrow-down', color: '#3b82f6', label: '입고', badgePrefix: 'To' }
                     : h.type === 'OUT'
                     ? { icon: 'fa-arrow-up', color: '#ef4444', label: '출고', badgePrefix: 'From' }
                     : h.type === 'MOVE'
-                    ? { icon: 'fa-right-left', color: '#f59e0b', label: '이동', badgePrefix: 'Move' }
+                    ? { icon: 'fa-arrow-right', color: '#f59e0b', label: '이동', badgePrefix: 'Move' }
                     : { icon: 'fa-arrows-up-down', color: '#0d9488', label: '조정', badgePrefix: 'In' };
 
                 const authorId = h.author || 'kipisa2095';
