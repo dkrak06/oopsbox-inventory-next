@@ -505,6 +505,9 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                   <div>
                     <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{selectedItem.name}</h2>
                     <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>SKU: {selectedItem.sku}</div>
+                    {selectedItem.barcode && (
+                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>바코드: {selectedItem.barcode}</div>
+                    )}
                   </div>
                 </div>
 
@@ -562,13 +565,8 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                 </div>
               </div>
 
-              {/* 3. 바코드/카테고리/브랜드 — 2열 그리드 */}
+              {/* 3. 카테고리/브랜드 — 2열 그리드 (바코드는 상단으로 이동) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', fontSize: '14px', marginBottom: '20px' }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>바코드</div>
-                  <div style={{ fontWeight: 600, color: '#1e293b' }}>{selectedItem.barcode || '-'}</div>
-                </div>
-
                 <div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>카테고리</div>
                   <div style={{ color: '#1e293b' }}>{selectedItem.category || '-'}</div>
