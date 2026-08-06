@@ -141,14 +141,18 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'dashboard' ? 'active' : ''}`}
               onClick={() => onNavigate('dashboard')}
             >
-              <i className="fa-solid fa-chart-pie menu-icon"></i>
+              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+                <i className="fa-solid fa-chart-pie menu-icon"></i>
+              </span>
               <span className="menu-title">대시보드</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'items' ? 'active' : ''}`}
               onClick={() => onNavigate('items')}
             >
-              <i className="fa-solid fa-boxes-stacked menu-icon"></i>
+              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+                <i className="fa-solid fa-boxes-stacked menu-icon"></i>
+              </span>
               <span className="menu-title">제품목록</span>
             </div>
           </div>
@@ -161,7 +165,7 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-in' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-in')}
             >
-              <span style={{ width: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
                 <i className="fa-solid fa-circle-arrow-down menu-icon" style={{ color: '#22c55e', fontSize: '18px' }}></i>
               </span>
               <span className="menu-title">입고 등록</span>
@@ -170,7 +174,7 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-out' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-out')}
             >
-              <span style={{ width: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
                 <i className="fa-solid fa-circle-arrow-up menu-icon" style={{ color: '#ef4444', fontSize: '18px' }}></i>
               </span>
               <span className="menu-title">출고 등록</span>
@@ -179,7 +183,7 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-adjust' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-adjust')}
             >
-              <span style={{ width: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
                 <svg
                   width="17"
                   height="16"
@@ -202,8 +206,8 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-move' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-move')}
             >
-              <span style={{ width: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
-                <i className="fa-solid fa-arrow-right menu-icon" style={{ color: '#f59e0b', fontSize: '16px' }}></i>
+              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+                <i className="fa-solid fa-arrow-right menu-icon" style={{ color: '#f59e0b', fontSize: '18px' }}></i>
               </span>
               <span className="menu-title">재고 이동</span>
             </div>
