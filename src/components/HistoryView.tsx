@@ -373,7 +373,26 @@ export default function HistoryView() {
                     {/* 상단 1행: 아이콘 & 유형명칭(주황색) & 생성일시 / 작성자 ID */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <i className={`fa-solid ${typeTheme.icon}`} style={{ color: typeTheme.color, fontSize: '15px' }}></i>
+                        {h.type === 'ADJUST' ? (
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke={typeTheme.color}
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            style={{ display: 'inline-block', verticalAlign: 'middle' }}
+                          >
+                            <path d="M5 13.5V2.5" />
+                            <path d="M2 5.5L5 2.5L8 5.5" />
+                            <path d="M11 2.5V13.5" />
+                            <path d="M8 10.5L11 13.5L14 10.5" />
+                          </svg>
+                        ) : (
+                          <i className={`fa-solid ${typeTheme.icon}`} style={{ color: typeTheme.color, fontSize: '15px' }}></i>
+                        )}
                         <strong style={{ fontSize: '15px', color: typeTheme.color, fontWeight: 800 }}>{typeTheme.label}</strong>
                       </div>
                       <div style={{ textAlign: 'right' }}>
