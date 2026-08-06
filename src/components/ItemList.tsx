@@ -494,11 +494,10 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
           ) : (
             <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
 
-              {/* 1. 상단: [이미지 + 제품명/SKU] + [수정/삭제] */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                {/* 이미지 + 제품명/SKU 좌측 배치 */}
+              {/* 1. 상단: [이미지 + 제품명/SKU/바코드] | [수정/삭제 + 2×2 퀵액션] */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                {/* 좌측: 이미지 + 제품명/SKU/바코드 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  {/* 이미지 박스 — 제품명 왼쪽 */}
                   <div style={{ width: '64px', height: '64px', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', flexShrink: 0 }}>
                     <i className="fa-regular fa-image" style={{ fontSize: '28px' }}></i>
                   </div>
@@ -511,57 +510,56 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                   </div>
                 </div>
 
-                {/* 수정/삭제 버튼 */}
-                <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenProductEdit(selectedItem)}
-                    style={{ padding: '7px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#334155', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    ✏️ 수정
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(selectedItem.id, selectedItem.name)}
-                    style={{ padding: '7px 14px', borderRadius: '6px', border: '1px solid #fee2e2', backgroundColor: '#ffffff', color: '#ef4444', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    🗑️ 삭제
-                  </button>
-                </div>
-              </div>
-
-              {/* 2. [입고 | 출고 | 조정 | 이동] 퀵 액션 버튼 — 수정/삭제 바로 아래 */}
-              <div style={{ marginBottom: '20px', backgroundColor: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '8px' }}>빠른 입출고 / 재고 관리</span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickAction('IN')}
-                    style={{ padding: '10px 0', borderRadius: '8px', border: 'none', backgroundColor: '#3b82f6', color: '#ffffff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
-                  >
-                    입고
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickAction('OUT')}
-                    style={{ padding: '10px 0', borderRadius: '8px', border: 'none', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
-                  >
-                    출고
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickAction('ADJUST')}
-                    style={{ padding: '10px 0', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#1e293b', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
-                  >
-                    조정
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickAction('MOVE')}
-                    style={{ padding: '10px 0', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#1e293b', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
-                  >
-                    이동
-                  </button>
+                {/* 우측: 수정/삭제 + 바로 아래 입고/출고/조정/이동 2×2 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+                  {/* 수정/삭제 버튼 행 */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenProductEdit(selectedItem)}
+                      style={{ padding: '7px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#334155', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      ✏️ 수정
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(selectedItem.id, selectedItem.name)}
+                      style={{ padding: '7px 14px', borderRadius: '6px', border: '1px solid #fee2e2', backgroundColor: '#ffffff', color: '#ef4444', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      🗑️ 삭제
+                    </button>
+                  </div>
+                  {/* 입고/출고/조정/이동 2×2 그리드 — 수정/삭제 바로 아래 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickAction('IN')}
+                      style={{ padding: '8px 0', borderRadius: '7px', border: 'none', backgroundColor: '#3b82f6', color: '#ffffff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                    >
+                      입고
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickAction('OUT')}
+                      style={{ padding: '8px 0', borderRadius: '7px', border: 'none', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                    >
+                      출고
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickAction('ADJUST')}
+                      style={{ padding: '8px 0', borderRadius: '7px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#1e293b', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                    >
+                      조정
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickAction('MOVE')}
+                      style={{ padding: '8px 0', borderRadius: '7px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#1e293b', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                    >
+                      이동
+                    </button>
+                  </div>
                 </div>
               </div>
 
