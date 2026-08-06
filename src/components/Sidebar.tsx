@@ -175,7 +175,7 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-adjust' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-adjust')}
             >
-              <span className="menu-icon" style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '3px', marginRight: '2px' }}>
+              <span className="menu-icon" style={{ display: 'inline-flex', alignItems: 'center', transform: 'translateX(2px)' }}>
                 <svg
                   width="14"
                   height="14"
