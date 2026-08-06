@@ -493,15 +493,23 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
             </div>
           ) : (
             <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              
-              {/* 1. 상단 타이틀, SKU, 수정/삭제 버튼 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-                <div>
-                  <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a' }}>{selectedItem.name}</h2>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>SKU: {selectedItem.sku}</div>
+
+              {/* 1. 상단: [이미지 + 제품명/SKU] + [수정/삭제] */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                {/* 이미지 + 제품명/SKU 좌측 배치 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  {/* 이미지 박스 - 제품명 왼쪽 */}
+                  <div style={{ width: '64px', height: '64px', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', flexShrink: 0 }}>
+                    <i className="fa-regular fa-image" style={{ fontSize: '28px' }}></i>
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{selectedItem.name}</h2>
+                    <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>SKU: {selectedItem.sku}</div>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                {/* 수정/삭제 버튼 */}
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={() => handleOpenProductEdit(selectedItem)}
@@ -519,8 +527,8 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                 </div>
               </div>
 
-              {/* 2. [입고 | 출고 | 조정 | 이동] 4개 퀵 액션 버튼 바 (사용자 요청 한눈에 바로 가능!) */}
-              <div style={{ marginBottom: '24px', backgroundColor: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              {/* 2. [입고 | 출고 | 조정 | 이동] 퀵 액션 버튼 — 수정/삭제 바로 아래 */}
+              <div style={{ marginBottom: '20px', backgroundColor: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '8px' }}>빠른 입출고 / 재고 관리</span>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
                   <button
@@ -554,93 +562,86 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                 </div>
               </div>
 
-              {/* 3. 본문: 이미지 + 상세 2열 그리드 + 위치별 보관 재고 뱃지 현황 */}
-              <div style={{ display: 'flex', gap: '24px' }}>
-                {/* 대형 이미지 박스 */}
-                <div style={{ width: '160px', height: '160px', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', flexShrink: 0 }}>
-                  <i className="fa-regular fa-image" style={{ fontSize: '48px' }}></i>
+              {/* 3. 바코드/카테고리/브랜드 — 2열 그리드 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', fontSize: '14px', marginBottom: '20px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>바코드</div>
+                  <div style={{ fontWeight: 600, color: '#1e293b' }}>{selectedItem.barcode || '-'}</div>
                 </div>
 
-                {/* 2열 상세 정보 그리드 */}
-                <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', fontSize: '14px' }}>
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>바코드</div>
-                    <div style={{ fontWeight: 600, color: '#1e293b' }}>{selectedItem.barcode || '-'}</div>
-                  </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>카테고리</div>
+                  <div style={{ color: '#1e293b' }}>{selectedItem.category || '-'}</div>
+                </div>
 
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>카테고리</div>
-                    <div style={{ color: '#1e293b' }}>{selectedItem.category || '-'}</div>
-                  </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>브랜드</div>
+                  <div style={{ color: '#1e293b' }}>{selectedItem.brand || '-'}</div>
+                </div>
+              </div>
 
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>브랜드</div>
-                    <div style={{ color: '#1e293b' }}>{selectedItem.brand || '-'}</div>
-                  </div>
-
-                  {/* 위치별 보관 재고 뱃지 현황 (스크린샷 1 100% 반영!) */}
-                  <div style={{ gridColumn: 'span 2', backgroundColor: '#f8fafc', padding: '14px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '13px', color: '#475569', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fa-solid fa-location-dot" style={{ color: '#3b82f6' }}></i> 위치별 보관 재고 현황 (클릭 시 퀵 액션)
-                    </div>
-                    {selectedItem.locations && Object.keys(selectedItem.locations).length > 0 ? (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {Object.entries(selectedItem.locations).map(([locName, qty]) => (
-                          <div
-                            key={locName}
-                            onClick={() => setActiveLocModal({ locName, qty })}
-                            style={{
-                              backgroundColor: '#ffffff',
-                              border: '1px solid #cbd5e1',
-                              padding: '7px 14px',
-                              borderRadius: '8px',
-                              fontSize: '13px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              cursor: 'pointer',
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-                            }}
-                            className="search-item-hover"
-                          >
-                            <span style={{ fontWeight: 600, color: '#1e293b' }}>📍 {locName}</span>
-                            <span style={{ fontWeight: 800, color: '#3b82f6' }}>{qty}개</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
+              {/* 4. 위치별 보관 재고 현황 — 헤더를 "총 재고량 + 거래횟수"로 변경 */}
+              <div style={{ backgroundColor: '#f8fafc', padding: '14px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                <div style={{ fontSize: '13px', color: '#475569', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-location-dot" style={{ color: '#3b82f6' }}></i>
+                  <span>총 재고량</span>
+                  <span style={{ fontSize: '16px', fontWeight: 800, color: '#3b82f6', marginLeft: '4px' }}>
+                    {selectedItem.total_quantity} 개
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                    (거래: {selectedItem.history_count || 0} 회)
+                  </span>
+                </div>
+                {selectedItem.locations && Object.keys(selectedItem.locations).length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {Object.entries(selectedItem.locations).map(([locName, qty]) => (
                       <div
-                        onClick={() => setActiveLocModal({ locName: '기본 위치', qty: selectedItem.total_quantity })}
-                        style={{ fontSize: '13px', color: '#94a3b8', cursor: 'pointer' }}
+                        key={locName}
+                        onClick={() => setActiveLocModal({ locName, qty })}
+                        style={{
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          padding: '7px 14px',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          cursor: 'pointer',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                        }}
+                        className="search-item-hover"
                       >
-                        📍 기본 위치: <strong style={{ color: '#3b82f6' }}>{selectedItem.total_quantity}개</strong>
+                        <span style={{ fontWeight: 600, color: '#1e293b' }}>📍 {locName}</span>
+                        <span style={{ fontWeight: 800, color: '#3b82f6' }}>{qty}개</span>
                       </div>
-                    )}
+                    ))}
                   </div>
-
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>총 재고량</div>
-                    <div style={{ fontWeight: 700, color: '#3b82f6' }}>
-                      {selectedItem.total_quantity} 개
-                      <span style={{ fontSize: '12px', marginLeft: '4px' }}>(거래: {selectedItem.history_count || 0} 회)</span>
-                    </div>
+                ) : (
+                  <div
+                    onClick={() => setActiveLocModal({ locName: '기본 위치', qty: selectedItem.total_quantity })}
+                    style={{ fontSize: '13px', color: '#94a3b8', cursor: 'pointer' }}
+                  >
+                    📍 기본 위치: <strong style={{ color: '#3b82f6' }}>{selectedItem.total_quantity}개</strong>
                   </div>
+                )}
+              </div>
 
+              {/* 5. 구매가 / 판매가 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', fontSize: '14px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>구매가</div>
+                  <div style={{ fontWeight: 700, color: '#1e293b' }}>₩{(selectedItem.purchase_price || 0).toLocaleString()}</div>
+                </div>
 
-
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>구매가</div>
-                    <div style={{ fontWeight: 700, color: '#1e293b' }}>₩{(selectedItem.purchase_price || 0).toLocaleString()}</div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>판매가</div>
-                    <div style={{ fontWeight: 700, color: '#22c55e' }}>₩{(selectedItem.selling_price || 0).toLocaleString()}</div>
-                  </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>판매가</div>
+                  <div style={{ fontWeight: 700, color: '#22c55e' }}>₩{(selectedItem.selling_price || 0).toLocaleString()}</div>
                 </div>
               </div>
 
             </div>
+
           )}
         </div>
 
