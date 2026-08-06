@@ -342,15 +342,15 @@ export default function HistoryView() {
               filteredHistories.map((h) => {
                 const isSelected = selectedHistory && selectedHistory.id === h.id;
 
-                // 사용자 요구사항 반영: 입고(down), 출고(up), 조정(arrows-up-down), 이동(arrow-right)
+                // 나란히 표기된 평행 화살표 세트: 입고(down), 출고(up), 조정(up-down 수직 나란히), 이동(right-left 수평 나란히)
                 const typeTheme =
                   h.type === 'IN'
                     ? { icon: 'fa-arrow-down', color: '#3b82f6', label: '입고', badgePrefix: 'To' }
                     : h.type === 'OUT'
                     ? { icon: 'fa-arrow-up', color: '#ef4444', label: '출고', badgePrefix: 'From' }
                     : h.type === 'MOVE'
-                    ? { icon: 'fa-arrow-right', color: '#f59e0b', label: '이동', badgePrefix: 'Move' }
-                    : { icon: 'fa-arrows-up-down', color: '#0d9488', label: '조정', badgePrefix: 'In' };
+                    ? { icon: 'fa-right-left', color: '#f59e0b', label: '이동', badgePrefix: 'Move' }
+                    : { icon: 'fa-up-down', color: '#0d9488', label: '조정', badgePrefix: 'In' };
 
                 const authorId = h.author || 'kipisa2095';
                 const itemCountLabel = h.items_count && h.items_count > 1
