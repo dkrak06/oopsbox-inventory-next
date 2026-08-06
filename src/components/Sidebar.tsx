@@ -161,21 +161,25 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-in' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-in')}
             >
-              <i className="fa-solid fa-circle-arrow-down menu-icon" style={{ color: '#22c55e' }}></i>
+              <span style={{ width: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+                <i className="fa-solid fa-circle-arrow-down menu-icon" style={{ color: '#22c55e', fontSize: '18px' }}></i>
+              </span>
               <span className="menu-title">입고 등록</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'stock-out' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-out')}
             >
-              <i className="fa-solid fa-circle-arrow-up menu-icon" style={{ color: '#ef4444' }}></i>
+              <span style={{ width: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+                <i className="fa-solid fa-circle-arrow-up menu-icon" style={{ color: '#ef4444', fontSize: '18px' }}></i>
+              </span>
               <span className="menu-title">출고 등록</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'stock-adjust' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-adjust')}
             >
-              <span className="menu-icon" style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span style={{ width: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
                 <svg
                   width="17"
                   height="16"
@@ -198,14 +202,18 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-move' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-move')}
             >
-              <i className="fa-solid fa-arrow-right menu-icon" style={{ color: '#f59e0b' }}></i>
+              <span style={{ width: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+                <i className="fa-solid fa-arrow-right menu-icon" style={{ color: '#f59e0b', fontSize: '16px' }}></i>
+              </span>
               <span className="menu-title">재고 이동</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'history' ? 'active' : ''}`}
               onClick={() => onNavigate('history')}
             >
-              <i className="fa-solid fa-clock-rotate-left menu-icon"></i>
+              <span style={{ width: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+                <i className="fa-solid fa-clock-rotate-left menu-icon" style={{ fontSize: '16px' }}></i>
+              </span>
               <span className="menu-title">히스토리</span>
             </div>
           </div>
