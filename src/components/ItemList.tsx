@@ -528,14 +528,14 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
               {/* 1. 상단: [이미지 + 제품명/SKU/바코드] | [수정/삭제] */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                 {/* 좌측: 이미지 + 제품명/SKU/바코드 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '64px', height: '64px', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', flexShrink: 0 }}>
-                    <i className="fa-regular fa-image" style={{ fontSize: '28px' }}></i>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ width: '88px', height: '88px', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', flexShrink: 0 }}>
+                    <i className="fa-regular fa-image" style={{ fontSize: '36px' }}></i>
                   </div>
                   <div>
-                    <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{selectedItem.name}</h2>
-                    <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>SKU: {selectedItem.sku}</div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>바코드: {selectedItem.barcode || '-'}</div>
+                    <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{selectedItem.name}</h2>
+                    <div style={{ fontSize: '13px', color: '#64748b', marginTop: '6px' }}>SKU: {selectedItem.sku}</div>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>바코드: {selectedItem.barcode || '-'}</div>
                   </div>
                 </div>
 
