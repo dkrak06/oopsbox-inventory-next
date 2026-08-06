@@ -181,26 +181,34 @@ export default function HistoryView() {
         fullDateStr >= startDateInput &&
         fullDateStr <= endDateInput;
       const isToday = fullDateStr === '2026-08-06';
-
       const isSunday = new Date(viewYear, viewMonth, day).getDay() === 0;
       const isSaturday = new Date(viewYear, viewMonth, day).getDay() === 6;
+
+      const isSingleSelected = (isStart && isEnd) || (isStart && !endDateInput) || (isEnd && !startDateInput);
 
       let containerBg = 'transparent';
       let textColor = isSunday || isSaturday ? '#ef4444' : '#1e293b';
       let borderRadius = '0';
       let isCircleBorder = false;
 
-      if (isStart || isEnd) {
-        containerBg = '#818cf8'; // 박스히어로 시그니처 둥근 캡 블루 보라색
+      if (isSingleSelected) {
+        // 단일 날짜 선택 시: 32px x 32px 완벽한 정원 뱃지!
         textColor = '#ffffff';
-        borderRadius = isStart && isEnd ? '50%' : isStart ? '16px 0 0 16px' : '0 16px 16px 0';
+      } else if (isStart) {
+        containerBg = '#818cf8'; // 범위 시작일
+        textColor = '#ffffff';
+        borderRadius = '16px 0 0 16px';
+      } else if (isEnd) {
+        containerBg = '#818cf8'; // 범위 종료일
+        textColor = '#ffffff';
+        borderRadius = '0 16px 16px 0';
       } else if (isInRange) {
-        containerBg = '#c7d2fe'; // 범위 연결 연보라파랑 배경
+        containerBg = '#c7d2fe'; // 범위 내부 일자
         textColor = '#312e81';
       }
 
       if (isToday && !isStart && !isEnd && !isInRange) {
-        isCircleBorder = true; // 스크린샷 27 파란 원형 스트로크 표시
+        isCircleBorder = true; // 오늘 날짜 파란 테두리
       }
 
       days.push(
@@ -208,7 +216,7 @@ export default function HistoryView() {
           key={`current-${day}`}
           onClick={() => handleDateClick(fullDateStr)}
           style={{
-            padding: '4px 0',
+            padding: '2px 0',
             fontSize: '13px',
             fontWeight: isStart || isEnd || isToday ? 700 : 500,
             color: textColor,
@@ -224,12 +232,14 @@ export default function HistoryView() {
         >
           <span
             style={{
-              width: '28px',
-              height: '28px',
+              width: '32px',
+              height: '32px',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: isToday && !isInRange ? '50%' : 'none',
+              borderRadius: '50%',
+              backgroundColor: isSingleSelected ? '#6366f1' : 'transparent',
+              color: isSingleSelected ? '#ffffff' : textColor,
               border: isCircleBorder ? '1.5px solid #3b82f6' : 'none'
             }}
           >
@@ -473,7 +483,6 @@ export default function HistoryView() {
                         type="button"
                         onClick={() => {
                           handlePresetSelect(preset);
-                          setShowDatePickerPopover(false);
                         }}
                         style={{
                           padding: '10px 14px',
