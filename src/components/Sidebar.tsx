@@ -175,9 +175,9 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-adjust' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-adjust')}
             >
-              <span className="menu-icon" style={{ color: '#0d9488', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
-                <i className="fa-solid fa-arrow-up"></i>
-                <i className="fa-solid fa-arrow-down"></i>
+              <span className="menu-icon" style={{ color: '#0d9488', display: 'inline-flex', alignItems: 'center', position: 'relative', width: '18px', height: '18px', justifyContent: 'center' }}>
+                <i className="fa-solid fa-arrow-up" style={{ position: 'absolute', left: '0px', top: '0px', fontSize: '11px' }}></i>
+                <i className="fa-solid fa-arrow-down" style={{ position: 'absolute', right: '0px', bottom: '0px', fontSize: '11px' }}></i>
               </span>
               <span className="menu-title">재고 조정</span>
             </div>
