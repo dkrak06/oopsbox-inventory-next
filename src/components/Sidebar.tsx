@@ -181,7 +181,7 @@ export default function Sidebar({
                   height="14"
                   viewBox="0 0 17 16"
                   fill="none"
-                  stroke="#0d9488"
+                  stroke={currentPath === 'stock-adjust' ? '#3b82f6' : '#64748b'}
                   strokeWidth="2.4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -198,7 +198,10 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-move' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-move')}
             >
-              <i className="fa-solid fa-arrow-right menu-icon" style={{ color: '#f59e0b' }}></i>
+              <i
+                className="fa-solid fa-arrow-right menu-icon"
+                style={{ color: currentPath === 'stock-move' ? '#3b82f6' : '#64748b' }}
+              ></i>
               <span className="menu-title">재고 이동</span>
             </div>
             <div
