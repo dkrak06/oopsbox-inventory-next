@@ -494,11 +494,18 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
           ) : (
             <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
 
-              {/* 1. 상단: 제품명/SKU + [수정/삭제] */}
+              {/* 1. 상단: [이미지 + 제품명/SKU] + [수정/삭제] */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <div>
-                  <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{selectedItem.name}</h2>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>SKU: {selectedItem.sku}</div>
+                {/* 이미지 + 제품명/SKU 좌측 배치 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  {/* 이미지 박스 — 제품명 왼쪽 */}
+                  <div style={{ width: '64px', height: '64px', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', flexShrink: 0 }}>
+                    <i className="fa-regular fa-image" style={{ fontSize: '28px' }}></i>
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{selectedItem.name}</h2>
+                    <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>SKU: {selectedItem.sku}</div>
+                  </div>
                 </div>
 
                 {/* 수정/삭제 버튼 */}
@@ -573,59 +580,51 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                 </div>
               </div>
 
-              {/* 4. 바코드 아래: [이미지] + [위치별 총 재고량 현황] 나란히 2열 */}
-              <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', alignItems: 'flex-start' }}>
-                {/* 이미지 박스 — 바코드/SKU 아래 좌측 */}
-                <div style={{ width: '130px', height: '130px', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', flexShrink: 0 }}>
-                  <i className="fa-regular fa-image" style={{ fontSize: '40px' }}></i>
+              {/* 4. 바코드 아래: 위치별 총 재고량 현황 (full width) */}
+              <div style={{ backgroundColor: '#f8fafc', padding: '14px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                <div style={{ fontSize: '13px', color: '#475569', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-location-dot" style={{ color: '#3b82f6' }}></i>
+                  <span>총 재고량</span>
+                  <span style={{ fontSize: '16px', fontWeight: 800, color: '#3b82f6', marginLeft: '4px' }}>
+                    {selectedItem.total_quantity} 개
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                    (거래: {selectedItem.history_count || 0} 회)
+                  </span>
                 </div>
-
-                {/* 총 재고량 + 위치 뱃지 */}
-                <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: '14px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '130px', boxSizing: 'border-box' }}>
-                  <div style={{ fontSize: '13px', color: '#475569', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <i className="fa-solid fa-location-dot" style={{ color: '#3b82f6' }}></i>
-                    <span>총 재고량</span>
-                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#3b82f6', marginLeft: '4px' }}>
-                      {selectedItem.total_quantity} 개
-                    </span>
-                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
-                      (거래: {selectedItem.history_count || 0} 회)
-                    </span>
+                {selectedItem.locations && Object.keys(selectedItem.locations).length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {Object.entries(selectedItem.locations).map(([locName, qty]) => (
+                      <div
+                        key={locName}
+                        onClick={() => setActiveLocModal({ locName, qty })}
+                        style={{
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          padding: '7px 14px',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          cursor: 'pointer',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                        }}
+                        className="search-item-hover"
+                      >
+                        <span style={{ fontWeight: 600, color: '#1e293b' }}>📍 {locName}</span>
+                        <span style={{ fontWeight: 800, color: '#3b82f6' }}>{qty}개</span>
+                      </div>
+                    ))}
                   </div>
-                  {selectedItem.locations && Object.keys(selectedItem.locations).length > 0 ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {Object.entries(selectedItem.locations).map(([locName, qty]) => (
-                        <div
-                          key={locName}
-                          onClick={() => setActiveLocModal({ locName, qty })}
-                          style={{
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #cbd5e1',
-                            padding: '7px 14px',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            cursor: 'pointer',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-                          }}
-                          className="search-item-hover"
-                        >
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>📍 {locName}</span>
-                          <span style={{ fontWeight: 800, color: '#3b82f6' }}>{qty}개</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => setActiveLocModal({ locName: '기본 위치', qty: selectedItem.total_quantity })}
-                      style={{ fontSize: '13px', color: '#94a3b8', cursor: 'pointer' }}
-                    >
-                      📍 기본 위치: <strong style={{ color: '#3b82f6' }}>{selectedItem.total_quantity}개</strong>
-                    </div>
-                  )}
-                </div>
+                ) : (
+                  <div
+                    onClick={() => setActiveLocModal({ locName: '기본 위치', qty: selectedItem.total_quantity })}
+                    style={{ fontSize: '13px', color: '#94a3b8', cursor: 'pointer' }}
+                  >
+                    📍 기본 위치: <strong style={{ color: '#3b82f6' }}>{selectedItem.total_quantity}개</strong>
+                  </div>
+                )}
               </div>
 
               {/* 5. 구매가 / 판매가 */}
