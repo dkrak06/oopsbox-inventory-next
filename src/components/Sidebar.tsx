@@ -175,14 +175,14 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-adjust' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-adjust')}
             >
-              <span className="menu-icon" style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span className="menu-icon" style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '3px', marginRight: '2px' }}>
                 <svg
-                  width="17"
-                  height="16"
+                  width="14"
+                  height="14"
                   viewBox="0 0 17 16"
                   fill="none"
                   stroke="#0d9488"
-                  strokeWidth="2.2"
+                  strokeWidth="2.4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
