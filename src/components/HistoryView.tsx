@@ -104,7 +104,21 @@ export default function HistoryView() {
     }
   };
 
-  // 7가지 빠른 기간 선택 처리
+  // 시작일 날짜(YYYY-MM-DD) 기반으로 달력 년/월 자동 이동 헬퍼
+  const updateCalendarViewDate = (dateStr: string) => {
+    if (!dateStr || dateStr.length < 7) return;
+    const parts = dateStr.split('-');
+    if (parts.length >= 2) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      if (!isNaN(year) && !isNaN(month) && month >= 0 && month <= 11) {
+        setViewYear(year);
+        setViewMonth(month);
+      }
+    }
+  };
+
+  // 7가지 빠른 기간 선택 처리 (선택된 기간의 시작일로 달력 연/월 자동 이동)
   const handlePresetSelect = (presetName: string) => {
     setSelectedDatePreset(presetName);
     const today = new Date(2026, 7, 6); // 2026년 8월 6일 기준
@@ -115,38 +129,50 @@ export default function HistoryView() {
       return `${y}-${m}-${day}`;
     };
 
+    let start = '';
+    let end = '';
+
     if (presetName === '전체 기간') {
-      setStartDateInput('');
-      setEndDateInput('');
+      start = '';
+      end = '';
+      setViewYear(2026);
+      setViewMonth(7);
     } else if (presetName === '오늘') {
-      setStartDateInput(formatDate(today));
-      setEndDateInput(formatDate(today));
+      start = formatDate(today);
+      end = formatDate(today);
     } else if (presetName === '최근 7일') {
       const past = new Date(today);
       past.setDate(today.getDate() - 7);
-      setStartDateInput(formatDate(past));
-      setEndDateInput(formatDate(today));
+      start = formatDate(past);
+      end = formatDate(today);
     } else if (presetName === '최근 30일') {
       const past = new Date(today);
       past.setDate(today.getDate() - 30);
-      setStartDateInput(formatDate(past));
-      setEndDateInput(formatDate(today));
+      start = formatDate(past);
+      end = formatDate(today);
     } else if (presetName === '이번 달') {
       const first = new Date(today.getFullYear(), today.getMonth(), 1);
-      setStartDateInput(formatDate(first));
-      setEndDateInput(formatDate(today));
+      start = formatDate(first);
+      end = formatDate(today);
     } else if (presetName === '지난주') {
       const lastWeekStart = new Date(today);
       lastWeekStart.setDate(today.getDate() - today.getDay() - 7);
       const lastWeekEnd = new Date(today);
       lastWeekEnd.setDate(today.getDate() - today.getDay() - 1);
-      setStartDateInput(formatDate(lastWeekStart));
-      setEndDateInput(formatDate(lastWeekEnd));
+      start = formatDate(lastWeekStart);
+      end = formatDate(lastWeekEnd);
     } else if (presetName === '지난달') {
       const lastMonthFirst = new Date(today.getFullYear(), today.getMonth() - 1, 1);
       const lastMonthLast = new Date(today.getFullYear(), today.getMonth(), 0);
-      setStartDateInput(formatDate(lastMonthFirst));
-      setEndDateInput(formatDate(lastMonthLast));
+      start = formatDate(lastMonthFirst);
+      end = formatDate(lastMonthLast);
+    }
+
+    setStartDateInput(start);
+    setEndDateInput(end);
+
+    if (start) {
+      updateCalendarViewDate(start);
     }
   };
 
@@ -455,7 +481,11 @@ export default function HistoryView() {
                         type="text"
                         placeholder="YYYY-MM-DD"
                         value={startDateInput}
-                        onChange={(e) => setStartDateInput(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setStartDateInput(val);
+                          updateCalendarViewDate(val);
+                        }}
                         style={{ width: '100%', padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '12px', boxSizing: 'border-box', outline: 'none' }}
                       />
                     </div>
