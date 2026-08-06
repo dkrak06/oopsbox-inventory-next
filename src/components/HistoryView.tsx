@@ -342,7 +342,7 @@ export default function HistoryView() {
               filteredHistories.map((h) => {
                 const isSelected = selectedHistory && selectedHistory.id === h.id;
 
-                // 이동(오른쪽 화살표 fa-arrow-right), 조정(이동 아이콘 90도 회전 fa-right-left fa-rotate-90)
+                // 입고(fa-arrow-down), 출고(fa-arrow-up), 이동(fa-arrow-right)과 100% 동일한 화살표 촉 모양으로 조정 화살표 통일
                 const typeTheme =
                   h.type === 'IN'
                     ? { icon: 'fa-arrow-down', color: '#3b82f6', label: '입고', badgePrefix: 'To' }
@@ -350,7 +350,7 @@ export default function HistoryView() {
                     ? { icon: 'fa-arrow-up', color: '#ef4444', label: '출고', badgePrefix: 'From' }
                     : h.type === 'MOVE'
                     ? { icon: 'fa-arrow-right', color: '#f59e0b', label: '이동', badgePrefix: 'Move' }
-                    : { icon: 'fa-right-left fa-rotate-90', color: '#0d9488', label: '조정', badgePrefix: 'In' };
+                    : { icon: 'fa-arrow-up-down', color: '#0d9488', label: '조정', badgePrefix: 'In' };
 
                 const authorId = h.author || 'kipisa2095';
                 const itemCountLabel = h.items_count && h.items_count > 1
@@ -373,7 +373,14 @@ export default function HistoryView() {
                     {/* 상단 1행: 아이콘 & 유형명칭(주황색) & 생성일시 / 작성자 ID */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <i className={`fa-solid ${typeTheme.icon}`} style={{ color: typeTheme.color, fontSize: '15px' }}></i>
+                        {h.type === 'ADJUST' ? (
+                          <span style={{ color: typeTheme.color, fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '1px', lineHeight: 1 }}>
+                            <i className="fa-solid fa-arrow-up"></i>
+                            <i className="fa-solid fa-arrow-down"></i>
+                          </span>
+                        ) : (
+                          <i className={`fa-solid ${typeTheme.icon}`} style={{ color: typeTheme.color, fontSize: '15px' }}></i>
+                        )}
                         <strong style={{ fontSize: '15px', color: typeTheme.color, fontWeight: 800 }}>{typeTheme.label}</strong>
                       </div>
                       <div style={{ textAlign: 'right' }}>
