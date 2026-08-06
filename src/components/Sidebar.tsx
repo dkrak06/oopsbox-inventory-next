@@ -141,18 +141,14 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'dashboard' ? 'active' : ''}`}
               onClick={() => onNavigate('dashboard')}
             >
-              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
-                <i className="fa-solid fa-chart-pie menu-icon"></i>
-              </span>
+              <i className="fa-solid fa-chart-pie menu-icon"></i>
               <span className="menu-title">대시보드</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'items' ? 'active' : ''}`}
               onClick={() => onNavigate('items')}
             >
-              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
-                <i className="fa-solid fa-boxes-stacked menu-icon"></i>
-              </span>
+              <i className="fa-solid fa-boxes-stacked menu-icon"></i>
               <span className="menu-title">제품목록</span>
             </div>
           </div>
@@ -165,25 +161,21 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-in' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-in')}
             >
-              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
-                <i className="fa-solid fa-circle-arrow-down menu-icon" style={{ color: '#22c55e', fontSize: '18px' }}></i>
-              </span>
+              <i className="fa-solid fa-circle-arrow-down menu-icon" style={{ color: '#22c55e' }}></i>
               <span className="menu-title">입고 등록</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'stock-out' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-out')}
             >
-              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
-                <i className="fa-solid fa-circle-arrow-up menu-icon" style={{ color: '#ef4444', fontSize: '18px' }}></i>
-              </span>
+              <i className="fa-solid fa-circle-arrow-up menu-icon" style={{ color: '#ef4444' }}></i>
               <span className="menu-title">출고 등록</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'stock-adjust' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-adjust')}
             >
-              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+              <span className="menu-icon" style={{ display: 'inline-flex', alignItems: 'center' }}>
                 <svg
                   width="17"
                   height="16"
@@ -206,18 +198,14 @@ export default function Sidebar({
               className={`menu-item ${currentPath === 'stock-move' ? 'active' : ''}`}
               onClick={() => onNavigate('stock-move')}
             >
-              <span style={{ width: '24px', height: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
-                <i className="fa-solid fa-arrow-right menu-icon" style={{ color: '#f59e0b', fontSize: '18px' }}></i>
-              </span>
+              <i className="fa-solid fa-arrow-right menu-icon" style={{ color: '#f59e0b' }}></i>
               <span className="menu-title">재고 이동</span>
             </div>
             <div
               className={`menu-item ${currentPath === 'history' ? 'active' : ''}`}
               onClick={() => onNavigate('history')}
             >
-              <span style={{ width: '24px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
-                <i className="fa-solid fa-clock-rotate-left menu-icon" style={{ fontSize: '16px' }}></i>
-              </span>
+              <i className="fa-solid fa-clock-rotate-left menu-icon"></i>
               <span className="menu-title">히스토리</span>
             </div>
           </div>
