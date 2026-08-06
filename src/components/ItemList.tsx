@@ -663,15 +663,25 @@ export default function ItemList({ onAddNew, onNavigate, onSelectProduct }: Item
                 </button>
               </div>
 
-              {/* 3. 카테고리/브랜드 */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', fontSize: '14px', marginBottom: '20px' }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>카테고리</div>
-                  <div style={{ color: '#1e293b' }}>{selectedItem.category || '-'}</div>
+              {/* 3. 제품 속성란 나열 (카테고리, 브랜드, 거래처 등) */}
+              <div style={{ marginBottom: '20px', backgroundColor: '#f8fafc', padding: '14px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <i className="fa-solid fa-tags" style={{ color: '#64748b' }}></i>
+                  <span>제품 속성</span>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>브랜드</div>
-                  <div style={{ color: '#1e293b' }}>{selectedItem.brand || '-'}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px 16px' }}>
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '3px' }}>카테고리</div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{selectedItem.category || '-'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '3px' }}>브랜드</div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{selectedItem.brand || '-'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '3px' }}>주 거래처</div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{selectedItem.partner || '-'}</div>
+                  </div>
                 </div>
               </div>
 
