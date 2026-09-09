@@ -1618,15 +1618,15 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
         </div>
 
         {/* 3. 테이블형 제품 목록 카드 */}
-        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>제품 목록</h2>
-            <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px', minWidth: '600px', overflowX: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'nowrap', gap: '12px' }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', flexShrink: 0 }}>제품 목록</h2>
+            <div style={{ display: 'flex', gap: '8px', flexShrink: 0, flexWrap: 'nowrap' }}>
               {/* 스크린샷 1, 5 ≡+ 일괄 추가 버튼 */}
               <button
                 type="button"
                 className="btn btn-action search-item-hover"
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                 onClick={() => setShowBulkAddModal(true)}
               >
                 <i className="fa-solid fa-bars-staggered"></i> 일괄 추가
@@ -1634,7 +1634,7 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
               <button
                 type="button"
                 className="btn btn-action search-item-hover"
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                 onClick={() => alert('엑셀 가져오기 기능 (준비중)')}
               >
                 <i className="fa-solid fa-file-excel"></i> 엑셀 가져오기
@@ -1642,7 +1642,7 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
               <button
                 type="button"
                 className="btn btn-action search-item-hover"
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                 onClick={() => alert('바코드 스캐너 연동 (준비중)')}
               >
                 <i className="fa-solid fa-expand"></i> 바코드 스캔
@@ -1650,9 +1650,9 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
             </div>
           </div>
 
-          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', position: 'relative' }}>
-            {/* 테이블 헤더 (스크린샷 4) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 1fr 1fr', backgroundColor: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b', borderRadius: '8px 8px 0 0' }}>
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', position: 'relative', minWidth: '550px' }}>
+            {/* 테이블 헤더 (스크린샷 4) - 수직 단어 깨짐 방지 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 1fr 1fr', backgroundColor: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b', borderRadius: '8px 8px 0 0', whiteSpace: 'nowrap' }}>
               <div></div>
               <div>제품</div>
               <div>현재고</div>

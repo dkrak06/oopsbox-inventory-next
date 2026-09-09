@@ -266,11 +266,11 @@ export default function ItemList({ onAddNew, onEditProduct, onNavigate, onSelect
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', fontFamily: 'Pretendard, sans-serif', paddingBottom: '60px' }}>
+    <div style={{ maxWidth: '1200px', minWidth: '850px', margin: '0 auto', fontFamily: 'Pretendard, sans-serif', paddingBottom: '60px' }}>
       {/* 1. 상단 타이틀 및 제품 추가 / 데이터 관리 버튼 영역 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a' }}>제품목록</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>제품목록</h1>
           <i className="fa-regular fa-circle-question" style={{ color: '#3b82f6', fontSize: '18px', cursor: 'pointer' }}></i>
         </div>
 

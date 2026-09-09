@@ -1,6 +1,7 @@
 /**
- * 이 파일은 애플리케이션의 전역 스타일을 담당합니다.
- * BoxHero 디자인 시스템의 색상 변수, 레이아웃, 사이드바, 헤더, 아코디언, 폼 요소 스타일을 정의합니다.
+ * [전역 CSS 스타일시트]
+ * 역할: BoxHero 디자인 시스템 변수, 고정 데스크톱 레이아웃, 한글 수직 깨짐 방지 스타일을 관리합니다.
+ * 흐름: 윈도우 크기가 줄어들어도 글자 수직 깨짐 방지(word-break: keep-all, white-space: nowrap) 및 수평 스크롤 고정 레이아웃을 보장합니다.
  */
 
 :root {
@@ -50,7 +51,9 @@ body {
   background-color: var(--bg-light);
   color: var(--text-primary);
   line-height: 1.5;
-  overflow-x: hidden;
+  overflow-x: auto; /* 화면 폭 축소 시 고정 레이아웃 구성을 위한 수평 스크롤 허용 */
+  word-break: keep-all; /* 한글 단어 세로줄 잘림 방지 (글자 단위 줄바꿈 제거) */
+  overflow-wrap: break-word;
 }
 
 a {
@@ -62,11 +65,34 @@ button, input, select, textarea {
   font-family: inherit;
 }
 
-/* 레이아웃 컨테이너 */
+/* 글로벌 전역 타이틀/테이블/버튼 수직 깨짐 방지 규칙 */
+th, td,
+.section-title,
+.main-title,
+.table-card-title,
+.card-title,
+.bottom-card-title,
+.form-label,
+.btn,
+.btn-action,
+.btn-quick,
+.btn-more,
+.btn-submit,
+.btn-cancel,
+.badge,
+.sku-cell,
+.name-cell,
+.date-cell {
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+/* 레이아웃 컨테이너 - 가로 폭 감소 시 데스크톱 뷰 형태 100% 고정 */
 .app-container {
   display: flex;
   min-height: 100vh;
   position: relative;
+  min-width: 1024px; /* 최소 레이아웃 너비 고정 */
 }
 
 /* 사이드바 스타일 */
@@ -310,13 +336,15 @@ button, input, select, textarea {
   color: var(--text-muted);
 }
 
-/* 메인 영역 */
+/* 메인 영역 고정 및 수평 스크롤 지원 */
 .main-wrapper {
   flex: 1;
   margin-left: var(--sidebar-width);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-width: 784px; /* 메인 콘텐츠 최저 너비 보장 */
+  overflow-x: auto;
   transition: margin-left var(--transition-speed) ease;
 }
 
@@ -331,6 +359,7 @@ button, input, select, textarea {
   position: sticky;
   top: 0;
   z-index: 90;
+  min-width: 784px;
 }
 
 .header-left {
@@ -343,12 +372,14 @@ button, input, select, textarea {
   font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .header-right {
   display: flex;
   align-items: center;
   gap: 16px;
+  white-space: nowrap;
 }
 
 .current-time {
@@ -389,6 +420,8 @@ button, input, select, textarea {
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+  overflow-x: auto;
+  min-width: 784px;
 }
 
 /* BoxHero Form Styles */
@@ -398,8 +431,10 @@ button, input, select, textarea {
   border: 1px solid var(--border-color);
   padding: 24px;
   max-width: 900px;
+  min-width: 650px;
   margin: 0 auto;
   box-shadow: var(--box-shadow);
+  overflow-x: auto;
 }
 
 .form-header {
@@ -674,26 +709,15 @@ button, input, select, textarea {
   gap: 24px;
   width: 100%;
   max-width: 1200px;
+  min-width: 760px;
   margin: 0 auto;
 }
 
-/* 1. 상단 4열 요약 카드 그리드 */
+/* 1. 상단 4열 요약 카드 그리드 - 최소 160px 확보 */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
   gap: 20px;
-}
-
-@media (max-width: 1024px) {
-  .dashboard-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .dashboard-grid .card {
@@ -708,6 +732,8 @@ button, input, select, textarea {
   overflow: hidden;
   box-shadow: var(--box-shadow);
   transition: transform 0.2s, box-shadow 0.2s;
+  min-width: 160px;
+  white-space: nowrap;
 }
 
 .dashboard-grid .card:hover {
@@ -812,6 +838,7 @@ button, input, select, textarea {
 
 .dashboard-table {
   width: 100%;
+  min-width: 600px; /* 테이블 컬럼 압축 및 글자 세로 잘림 100% 방지 */
   border-collapse: collapse;
   text-align: left;
 }
@@ -823,6 +850,7 @@ button, input, select, textarea {
   font-size: 13px;
   font-weight: 600;
   background-color: #f8fafc;
+  white-space: nowrap;
 }
 
 .dashboard-table td {
@@ -830,6 +858,7 @@ button, input, select, textarea {
   border-bottom: 1px solid #f1f5f9;
   font-size: 13px;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .dashboard-table tbody tr:hover {

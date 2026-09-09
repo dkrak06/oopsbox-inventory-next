@@ -350,12 +350,12 @@ export default function HistoryView() {
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', fontFamily: 'Pretendard, sans-serif', height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ maxWidth: '1200px', minWidth: '850px', margin: '0 auto', fontFamily: 'Pretendard, sans-serif', height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       
       {/* 1. 상단 타이틀 & 엑셀 내보내기 버튼 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', margin: 0 }}>히스토리</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', margin: 0, whiteSpace: 'nowrap' }}>히스토리</h1>
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#ccfbf1', color: '#0d9488', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>?</span>
         </div>
 
