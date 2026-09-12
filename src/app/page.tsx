@@ -27,7 +27,7 @@ import PriceTemplateManagement from '@/components/PriceTemplateManagement';
 import SettingManagement from '@/components/SettingManagement';
 import AuthModal from '@/components/AuthModal';
 import { getStoredItems, getStoredHistories, Item, StockHistory } from '@/lib/storage'; // 로컬 저장소 유틸리티 임포트 및 타입 추가
-
+import { fetchItemsFromDB, fetchHistoriesFromDB, insertItemToDB } from '@/lib/supabaseService'; // Supabase 실시간 클라우드 DB 연동
 
 export default function Home() {
   // 모바일 사이드바 상태
@@ -61,11 +61,31 @@ export default function Home() {
   // 실시간 재고 변동 히스토리 상태 (최근 입출고 내역 바인딩용)
   const [histories, setHistories] = useState<StockHistory[]>([]);
 
-  // 제품 목록과 히스토리 데이터를 동시에 갱신하는 헬퍼 함수
-  const refreshData = () => {
-    const loadedItems = getStoredItems();
-    setItems(loadedItems);
-    setHistories(getStoredHistories());
+  // 제품 목록과 히스토리 데이터를 로컬 캐시 및 Supabase 클라우드에서 비동기 갱신하는 헬퍼 함수
+  const refreshData = async () => {
+    // 1. 빠른 화면 렌더링을 위해 로컬 캐시 데이터 우선 즉시 반영
+    const cachedItems = getStoredItems();
+    const cachedHistories = getStoredHistories();
+    setItems(cachedItems);
+    setHistories(cachedHistories);
+
+    // 2. Supabase 클라우드 DB에서 최신 데이터 비동기 동기화
+    try {
+      const dbItems = await fetchItemsFromDB();
+      const dbHistories = await fetchHistoriesFromDB();
+      
+      // 만약 원격 DB가 비어있고 로컬에 초기 데이터가 있다면 클라우드로 자동 마이그레이션
+      if (dbItems.length === 0 && cachedItems.length > 0) {
+        for (const item of cachedItems) {
+          await insertItemToDB(item);
+        }
+      } else {
+        setItems(dbItems);
+      }
+      setHistories(dbHistories);
+    } catch (err) {
+      console.warn('Supabase 실시간 데이터 동기화 지연:', err);
+    }
   };
 
   useEffect(() => {

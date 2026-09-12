@@ -1,8 +1,17 @@
 /**
- * [LocalStorage 기반 데이터 관리 유틸리티]
- * 역할: 기존 app.js의 hb_items, hb_locations, hb_stock_history LocalStorage 데이터 구조를 이식합니다.
- * 흐름: 브라우저 저장소와 상호작용하여 제품 등록, 목록 조회, 삭제, 재고 수량 변경 및 히스토리를 저장합니다.
+ * [LocalStorage 및 Supabase 하이브리드 데이터 관리 유틸리티]
+ * 역할: 브라우저 LocalStorage 캐시와 Supabase 클라우드 데이터베이스를 실시간으로 양방향 동기화합니다.
+ * 흐름: 모든 생성, 수정, 삭제, 재고 변동 작업을 로컬 캐시에 즉시 반영함과 동시에 Supabase DB에 영구 적재합니다.
  */
+
+import {
+  insertItemToDB,
+  updateItemInDB,
+  deleteItemFromDB,
+  insertHistoryToDB,
+  insertLocationToDB,
+  insertPartnerToDB,
+} from './supabaseService';
 
 // 제품(Item) 인터페이스 정의
 export interface Item {
@@ -216,7 +225,7 @@ export const getStoredItems = (): Item[] => {
   }
 };
 
-// 2. 새 제품 저장하기 함수
+// 2. 새 제품 저장하기 함수 (로컬 즉시 반영 + Supabase 클라우드 동기화)
 export const saveItem = (newItem: Omit<Item, 'id' | 'created_at' | 'updated_at'>): Item => {
   const items = getStoredItems();
   const now = new Date().toISOString();
@@ -227,35 +236,50 @@ export const saveItem = (newItem: Omit<Item, 'id' | 'created_at' | 'updated_at'>
     created_at: now,
     updated_at: now,
     partner: newItem.partner || '',
-    history_count: 0, // 신규 품목 등록 시 초기 거래 횟수는 0회로 초기화합니다. (기존 하드코딩값 3 수정)
+    history_count: 0,
   };
 
   const updatedItems = [createdItem, ...items];
   localStorage.setItem(ITEMS_KEY, JSON.stringify(updatedItems));
+
+  // Supabase 클라우드 데이터베이스에 비동기 영구 저장
+  insertItemToDB(createdItem);
+
   return createdItem;
 };
 
-// 3. 특정 제품 삭제하기 함수
+// 3. 특정 제품 삭제하기 함수 (로컬 즉시 삭제 + Supabase 클라우드 동기화)
 export const deleteItem = (itemId: string): void => {
   const items = getStoredItems();
   const filtered = items.filter((item) => item.id !== itemId);
   localStorage.setItem(ITEMS_KEY, JSON.stringify(filtered));
+
+  // Supabase 클라우드 DB에서 제품 삭제
+  deleteItemFromDB(itemId);
 };
 
-// 3-1. 특정 제품 정보 수정하기 함수
+// 3-1. 특정 제품 정보 수정하기 함수 (로컬 즉시 수정 + Supabase 클라우드 동기화)
 export const updateItem = (itemId: string, updatedFields: Partial<Omit<Item, 'id' | 'created_at'>>): Item[] => {
   const items = getStoredItems();
+  let modifiedItem: Item | null = null;
   const updated = items.map((item) => {
     if (item.id === itemId) {
-      return {
+      modifiedItem = {
         ...item,
         ...updatedFields,
         updated_at: new Date().toISOString(),
       };
+      return modifiedItem;
     }
     return item;
   });
   localStorage.setItem(ITEMS_KEY, JSON.stringify(updated));
+
+  // Supabase 클라우드 DB에 수정 내용 반영
+  if (modifiedItem) {
+    updateItemInDB(itemId, modifiedItem);
+  }
+
   return updated;
 };
 
@@ -341,6 +365,10 @@ export const recordStockMovement = (
 
     const histories = getStoredHistories();
     localStorage.setItem(HISTORY_KEY, JSON.stringify([historyData, ...histories]));
+
+    // Supabase 클라우드 데이터베이스에 제품 수량 갱신 및 변동 히스토리 영구 저장
+    updateItemInDB(targetItem.id, targetItem);
+    insertHistoryToDB(historyData);
   }
 };
 
