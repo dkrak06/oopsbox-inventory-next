@@ -4,19 +4,19 @@
  */
 import type { NextConfig } from "next";
 
-// 프로덕션 빌드(배포) 환경인지 확인
-const isProd = process.env.NODE_ENV === "production";
-// GitHub 저장소 이름 (GitHub Pages 주소의 하위 경로)
+// GitHub Pages(Actions) 환경인지 확인 (Vercel 배포 시에는 루트 경로 사용)
+const isGithubPages = process.env.GITHUB_ACTIONS === "true";
+// GitHub 저장소 이름
 const repoName = "oopsbox-inventory-next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // 1. 서버 없이 순수 HTML/CSS/JS 파일들로 빌드하여 배포하는 정적 내보내기 모드
+  // 1. 정적 내보내기 활성화
   output: "export",
-  // 2. GitHub Pages 서브디렉토리 주소(/oopsbox-inventory-next)에 맞게 기본 경로 설정
-  basePath: isProd ? `/${repoName}` : "",
-  assetPrefix: isProd ? `/${repoName}/` : "",
-  // 3. 정적 export 환경에서 Node.js 이미지 서버 없이도 이미지를 표시할 수 있도록 최적화 해제
+  // 2. Vercel은 루트(/)로 배포되고, GitHub Pages일 때만 서브 경로(/oopsbox-inventory-next) 적용
+  basePath: isGithubPages ? `/${repoName}` : "",
+  assetPrefix: isGithubPages ? `/${repoName}/` : "",
+  // 3. 이미지 최적화 unoptimized 처리
   images: {
     unoptimized: true,
   },
