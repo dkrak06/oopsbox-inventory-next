@@ -440,7 +440,7 @@ export const updateItem = (itemId: string, updatedFields: Partial<Omit<Item, 'id
   return updated;
 };
 
-// 4. 재고 입출고/조정/이동 기록 및 수량 업데이트 함수 (유형별 before_qty, after_qty, qty_change 완전 정밀 연산)
+// 4. 재고 입출고/조정/이동 기록 및 수량 업데이트 함수 (사용자 지정 날짜 customDate 지원)
 export const recordStockMovement = (
   itemId: string,
   type: 'IN' | 'OUT' | 'ADJUST' | 'MOVE',
@@ -448,7 +448,8 @@ export const recordStockMovement = (
   locationName: string = '기본 위치',
   toLocationName: string = '',
   author: string = 'kipisa2095',
-  notes: string = ''
+  notes: string = '',
+  customDate?: string
 ) => {
   const items = getStoredItems();
   const itemIndex = items.findIndex((i) => i.id === itemId);
@@ -496,7 +497,9 @@ export const recordStockMovement = (
     saveLocationName(locationName);
 
     const now = new Date();
-    const dateFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const defaultDateFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    // 사용자가 달력 기능으로 지정한 날짜가 있으면 우선 반영, 없으면 현재 시각 사용
+    const dateFormatted = (customDate && customDate !== '현재') ? customDate : defaultDateFormatted;
 
     // 히스토리 생성 및 저장 (MOVE 타입은 출발/도착 위치를 담은 단일 레코드!)
     const historyData: StockHistory = {

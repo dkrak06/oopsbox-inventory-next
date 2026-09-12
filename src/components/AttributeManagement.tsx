@@ -1,7 +1,7 @@
 /**
  * [AttributeManagement 컴포넌트]
- * 역할: 데이터 관리 > 속성 메뉴에서 제품 속성의 이름, 종류(텍스트/숫자 등), 방식(고정/선택)을 정의하고 ≡ 아이콘으로 순서를 변경합니다.
- * 흐름: '고정' 속성은 제품 등록 시 기본 표출되고, '선택' 속성은 제품 등록 폼에서 사용자가 필요 시 골라서 추가할 수 있습니다.
+ * 역할: 데이터 관리 > 속성 메뉴에서 제품 속성의 이름, 종류, 표시 방식(고정/선택/숨김)을 설정하고 순서를 관리합니다.
+ * 흐름: 표시 방식을 [고정|선택|숨김] 단일 세그먼트로 통합 제어하여 제품 등록 폼과의 연동성을 직관적으로 제공합니다.
  */
 
 'use client';
@@ -39,13 +39,13 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
   const [isAdding, setIsAdding] = useState<boolean>(false);
   const [newName, setNewName] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('선택하세요');
-  const [selectedMode, setSelectedMode] = useState<AttributeMode>('선택');
+  const [selectedDisplayMode, setSelectedDisplayMode] = useState<'고정' | '선택' | '숨김'>('선택');
 
   // 4. 기존 항목 수정 상태
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>('');
   const [editType, setEditType] = useState<AttributeType>('텍스트');
-  const [editMode, setEditMode] = useState<AttributeMode>('선택');
+  const [editDisplayMode, setEditDisplayMode] = useState<'고정' | '선택' | '숨김'>('선택');
 
   // 5. 삭제 확인 모달 제어 상태 (요구사항 1, 2, 3 구현)
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
@@ -113,12 +113,19 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
     const updated = saveAttribute({
       name: newName.trim(),
       type: selectedType as AttributeType,
-      mode: selectedMode,
+      mode: selectedDisplayMode === '고정' ? '고정' : '선택',
     });
-    setAttributes(updated.filter((a) => !a.is_deleted));
+    let finalAttrs = updated;
+    if (selectedDisplayMode === '숨김') {
+      const createdId = updated[updated.length - 1]?.id;
+      if (createdId) {
+        finalAttrs = toggleAttributeVisibility(createdId, false);
+      }
+    }
+    setAttributes(finalAttrs.filter((a) => !a.is_deleted));
     setNewName('');
     setSelectedType('선택하세요');
-    setSelectedMode('선택');
+    setSelectedDisplayMode('선택');
     setIsAdding(false);
   };
 
@@ -127,7 +134,9 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
     setEditingId(attr.id);
     setEditName(attr.name);
     setEditType(attr.type || '텍스트');
-    setEditMode(attr.mode || '선택');
+    const currentMode: '고정' | '선택' | '숨김' =
+      attr.is_visible === false ? '숨김' : (attr.mode || '선택');
+    setEditDisplayMode(currentMode);
   };
 
   // 속성 수정 완료 함수
@@ -136,7 +145,13 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
       alert('속성 이름을 입력해 주세요.');
       return;
     }
-    const updated = updateAttribute(id, editName.trim(), editType, editMode);
+    const newMode: AttributeMode = editDisplayMode === '고정' ? '고정' : '선택';
+    const isVisible = editDisplayMode !== '숨김';
+
+    // 1. 이름, 타입, 모드 업데이트
+    updateAttribute(id, editName.trim(), editType, newMode);
+    // 2. 가시성 업데이트
+    const updated = toggleAttributeVisibility(id, isVisible);
     setAttributes(updated.filter((a) => !a.is_deleted));
     setEditingId(null);
   };
@@ -194,9 +209,20 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
     setTargetAttr(null);
   };
 
-  // 노출 여부 토글 (On/Off) 즉시 변경 핸들러
-  const handleToggleVisibility = (id: string, currentVisible: boolean) => {
-    const updated = toggleAttributeVisibility(id, !currentVisible);
+  // 표시 방식 (고정 / 선택 / 숨김) 원클릭 즉시 변경 핸들러
+  const handleUpdateDisplayMode = (id: string, modeType: '고정' | '선택' | '숨김') => {
+    const current = getStoredAttributes();
+    const updated = current.map((a) => {
+      if (a.id === id) {
+        return {
+          ...a,
+          mode: modeType === '고정' ? ('고정' as AttributeMode) : ('선택' as AttributeMode),
+          is_visible: modeType !== '숨김',
+        };
+      }
+      return a;
+    });
+    saveAllAttributes(updated);
     setAttributes(updated.filter((a) => !a.is_deleted));
   };
 
@@ -256,11 +282,11 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
 
       {/* 속성 관리 테이블 메인 영역 */}
       <div style={{ width: '100%' }}>
-        {/* 테이블 헤더 (드래그 | 이름 | 종류 | 방식 | 노출 여부 | 관리) */}
+        {/* 테이블 헤더 (드래그 | 이름 | 종류 | 표시 방식 | 삭제) */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '40px 1fr 120px 120px 100px 80px',
+            gridTemplateColumns: '40px 1fr 120px 220px 80px',
             padding: '12px 16px',
             borderBottom: '1px solid #e2e8f0',
             fontSize: '14px',
@@ -271,8 +297,7 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
           <div></div>
           <div>이름</div>
           <div>종류</div>
-          <div>방식</div>
-          <div style={{ textAlign: 'center' }}>노출 여부</div>
+          <div>표시 방식</div>
           <div style={{ textAlign: 'right' }}></div>
         </div>
 
@@ -291,7 +316,7 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
               onDragEnd={handleDragEnd}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '40px 1fr 120px 120px 100px 80px',
+                gridTemplateColumns: '40px 1fr 120px 220px 80px',
                 alignItems: 'center',
                 padding: '14px 16px',
                 borderBottom: isDragOver ? '2px solid #3b82f6' : '1px solid #f1f5f9',
@@ -380,97 +405,103 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
                 )}
               </div>
 
-              {/* 4열: 표출 방식 (고정 / 선택) */}
+              {/* 4열: 표시 방식 [고정 | 선택 | 숨김] 세그먼트 버튼 그룹 */}
               <div>
                 {editingId === attr.id ? (
                   <select
-                    value={editMode}
-                    onChange={(e) => setEditMode(e.target.value as AttributeMode)}
+                    value={editDisplayMode}
+                    onChange={(e) => setEditDisplayMode(e.target.value as '고정' | '선택' | '숨김')}
                     style={{
                       padding: '6px 10px',
                       borderRadius: '6px',
                       border: '1px solid #cbd5e1',
-                      fontSize: '14px',
+                      fontSize: '13px',
                       color: '#0f172a',
                       backgroundColor: '#ffffff',
                     }}
                   >
-                    <option value="고정" style={{ color: '#0f172a' }}>고정 (기본 표출)</option>
-                    <option value="선택" style={{ color: '#0f172a' }}>선택 (필요 시 표출)</option>
+                    <option value="고정">고정 (기본 표출)</option>
+                    <option value="선택">선택 (필요 시 표출)</option>
+                    <option value="숨김">숨김 (표출 안 함)</option>
                   </select>
                 ) : (
-                  <span
+                  <div
                     style={{
-                      display: 'inline-block',
-                      padding: '3px 10px',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      backgroundColor: (attr.mode || '선택') === '고정' ? '#eff6ff' : '#f1f5f9',
-                      color: (attr.mode || '선택') === '고정' ? '#2563eb' : '#64748b',
-                      border: (attr.mode || '선택') === '고정' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                      display: 'inline-flex',
+                      backgroundColor: '#f1f5f9',
+                      padding: '2px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      gap: '2px',
                     }}
                   >
-                    {attr.mode || '선택'}
-                  </span>
+                    {/* 고정 버튼 */}
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateDisplayMode(attr.id, '고정')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: attr.is_visible !== false && attr.mode === '고정' ? '#2563eb' : 'transparent',
+                        color: attr.is_visible !== false && attr.mode === '고정' ? '#ffffff' : '#64748b',
+                        boxShadow: attr.is_visible !== false && attr.mode === '고정' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title="제품 추가 시 항상 기본으로 표시됩니다."
+                    >
+                      고정
+                    </button>
+
+                    {/* 선택 버튼 */}
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateDisplayMode(attr.id, '선택')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: attr.is_visible !== false && attr.mode === '선택' ? '#2563eb' : 'transparent',
+                        color: attr.is_visible !== false && attr.mode === '선택' ? '#ffffff' : '#64748b',
+                        boxShadow: attr.is_visible !== false && attr.mode === '선택' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title="제품 추가 시 '+ 속성 추가'를 눌러 선택할 수 있습니다."
+                    >
+                      선택
+                    </button>
+
+                    {/* 숨김 버튼 */}
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateDisplayMode(attr.id, '숨김')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: attr.is_visible === false ? '#64748b' : 'transparent',
+                        color: attr.is_visible === false ? '#ffffff' : '#64748b',
+                        boxShadow: attr.is_visible === false ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title="제품 등록 폼에서 완전히 숨깁니다."
+                    >
+                      숨김
+                    </button>
+                  </div>
                 )}
               </div>
 
-              {/* 5열: 노출 여부 토글 스위치 (On/Off) */}
-              <div style={{ textAlign: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => handleToggleVisibility(attr.id, attr.is_visible !== false)}
-                  style={{
-                    border: 'none',
-                    background: 'none',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    padding: '4px',
-                  }}
-                  title={attr.is_visible !== false ? '노출 중 (클릭 시 등록 폼에서 숨김)' : '숨김 중 (클릭 시 등록 폼에 노출)'}
-                >
-                  <div
-                    style={{
-                      width: '36px',
-                      height: '20px',
-                      borderRadius: '10px',
-                      backgroundColor: attr.is_visible !== false ? '#3b82f6' : '#cbd5e1',
-                      position: 'relative',
-                      transition: 'background-color 0.2s ease',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '16px',
-                        height: '16px',
-                        borderRadius: '50%',
-                        backgroundColor: '#ffffff',
-                        position: 'absolute',
-                        top: '2px',
-                        left: attr.is_visible !== false ? '18px' : '2px',
-                        transition: 'left 0.2s ease',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                      }}
-                    />
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      color: attr.is_visible !== false ? '#2563eb' : '#64748b',
-                      width: '24px',
-                    }}
-                  >
-                    {attr.is_visible !== false ? 'On' : 'Off'}
-                  </span>
-                </button>
-              </div>
-
-              {/* 6열: 삭제 및 완료 버튼 */}
+              {/* 5열: 삭제 및 완료 버튼 */}
               <div style={{ textAlign: 'right' }}>
                 {editingId === attr.id ? (
                   <button
@@ -517,7 +548,7 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '40px 1fr 120px 120px 100px 80px',
+              gridTemplateColumns: '40px 1fr 120px 220px 80px',
               alignItems: 'center',
               padding: '12px 16px',
               borderBottom: '1px solid #f1f5f9',
@@ -570,11 +601,11 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
               </select>
             </div>
 
-            {/* 신규 방식 선택 드롭다운 (고정 / 선택) */}
+            {/* 신규 표시 방식 선택 드롭다운 (고정 / 선택 / 숨김) */}
             <div>
               <select
-                value={selectedMode}
-                onChange={(e) => setSelectedMode(e.target.value as AttributeMode)}
+                value={selectedDisplayMode}
+                onChange={(e) => setSelectedDisplayMode(e.target.value as '고정' | '선택' | '숨김')}
                 style={{
                   padding: '8px 12px',
                   borderRadius: '6px',
@@ -587,6 +618,7 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
               >
                 <option value="선택" style={{ color: '#0f172a' }}>선택 (필요 시 표출)</option>
                 <option value="고정" style={{ color: '#0f172a' }}>고정 (기본 표출)</option>
+                <option value="숨김" style={{ color: '#0f172a' }}>숨김 (표출 안 함)</option>
               </select>
             </div>
 
@@ -614,7 +646,7 @@ export default function AttributeManagement({ isModal, onClose }: AttributeManag
                   setIsAdding(false);
                   setNewName('');
                   setSelectedType('선택하세요');
-                  setSelectedMode('선택');
+                  setSelectedDisplayMode('선택');
                 }}
                 style={{
                   padding: '8px 12px',

@@ -463,11 +463,14 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
 
     // 각 제품별 재고 이동 반영 실행 (단일 MOVE 트랜잭션으로 히스토리 1개만 생성)
     const currentAuthor = getStoredCurrentUser ? getStoredCurrentUser() : 'kipisa2095';
+    // 날짜 기능으로 등록한 날짜 반영 (사용자 지정 customDateString 전달)
+    const targetDate = useCurrentDate ? undefined : customDateString;
+
     selectedList.forEach(row => {
       if (type === 'MOVE') {
-        recordStockMovement(row.item.id, 'MOVE', row.qty, warehouse, toWarehouse, currentAuthor, notes);
+        recordStockMovement(row.item.id, 'MOVE', row.qty, warehouse, toWarehouse, currentAuthor, notes, targetDate);
       } else {
-        recordStockMovement(row.item.id, type, row.qty, warehouse, '', currentAuthor, notes);
+        recordStockMovement(row.item.id, type, row.qty, warehouse, '', currentAuthor, notes, targetDate);
       }
     });
 
@@ -1630,8 +1633,8 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
           </div>
         </div>
 
-        {/* 3. 테이블형 제품 목록 카드 (상단 메타데이터 드롭다운/달력이 위에 오도록 z-index: 1 부여) */}
-        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px', minWidth: '600px', overflowX: 'auto', position: 'relative', zIndex: 1 }}>
+        {/* 3. 테이블형 제품 목록 카드 (overflow: visible 및 레이어 돌출 z-index: 10 부여) */}
+        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px', minWidth: '600px', position: 'relative', zIndex: 10, overflow: 'visible' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'nowrap', gap: '12px' }}>
             <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', flexShrink: 0 }}>제품 목록</h2>
             <div style={{ display: 'flex', gap: '8px', flexShrink: 0, flexWrap: 'nowrap' }}>
@@ -1663,7 +1666,7 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
             </div>
           </div>
 
-          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', position: 'relative', minWidth: '550px' }}>
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', position: 'relative', minWidth: '550px', overflow: 'visible' }}>
             {/* 테이블 헤더 (스크린샷 4) - 수직 단어 깨짐 방지 */}
             <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 1fr 1fr', backgroundColor: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 700, color: '#64748b', borderRadius: '8px 8px 0 0', whiteSpace: 'nowrap' }}>
               <div></div>
@@ -1672,8 +1675,8 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
               <div>{theme.label} <span style={{ color: '#ff4d4f' }}>*</span></div>
             </div>
 
-            {/* 테이블 바디 */}
-            <div ref={dropdownRef} style={{ position: 'relative', borderBottom: '1px solid #e2e8f0' }}>
+            {/* 테이블 바디 (제품 검색 입력 영역, z-index: 50) */}
+            <div ref={dropdownRef} style={{ position: 'relative', borderBottom: '1px solid #e2e8f0', zIndex: 50 }}>
               <div style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', backgroundColor: '#ffffff' }}>
                 <i className="fa-solid fa-plus" style={{ color: '#94a3b8', marginRight: '8px' }}></i>
                 <input
@@ -1689,9 +1692,9 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
                 />
               </div>
 
-              {/* 검색 드롭다운 결과창 (overflow: hidden 방해 없이 시원하게 잘림 없이 표시) */}
+              {/* 검색 드롭다운 결과창 (z-index: 600 및 깊이감 있는 그림자로 카드 바깥으로 시원하게 돌출) */}
               {isDropdownOpen && (
-                <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.18), 0 4px 8px -2px rgba(0, 0, 0, 0.08)', zIndex: 100, maxHeight: '320px', overflowY: 'auto' }}>
+                <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 16px 36px rgba(0, 0, 0, 0.18), 0 6px 14px rgba(0, 0, 0, 0.08)', zIndex: 600, maxHeight: '320px', overflowY: 'auto' }}>
                   {availableItems
                     .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.sku.toLowerCase().includes(searchQuery.toLowerCase()))
                     .map(item => (

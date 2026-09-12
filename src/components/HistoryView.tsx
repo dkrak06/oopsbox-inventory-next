@@ -24,6 +24,28 @@ interface HistoryDetailRow {
   qtyChange: number;
 }
 
+// 날짜를 사용자 친화적인 YYYY-MM-DD HH:mm 포맷으로 변환하는 헬퍼 함수
+function formatDisplayDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  // 이미 "YYYY-MM-DD HH:mm" 형태이면 그대로 반환
+  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  // ISO 포맷 또는 기타 날짜 문자열인 경우 한국 시간 포맷팅
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function HistoryView() {
   // 저장소 히스토리 목록 데이터
   const [histories, setHistories] = useState<StockHistory[]>([]);
@@ -723,7 +745,10 @@ export default function HistoryView() {
                         <strong style={{ fontSize: '15px', color: typeTheme.color, fontWeight: 800 }}>{typeTheme.label}</strong>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>{h.created_at}</div>
+                        {/* 사용자가 등록한 날짜(date) 최우선 표출, 없으면 생성일(created_at) */}
+                        <div style={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>
+                          {formatDisplayDate(h.date || h.created_at)}
+                        </div>
                         <div style={{ fontSize: '11px', color: '#94a3b8' }}>{authorId}</div>
                       </div>
                     </div>
@@ -883,7 +908,9 @@ export default function HistoryView() {
                     </div>
                     <div style={{ display: 'flex', gap: '24px' }}>
                       <span style={{ width: '50px', color: '#64748b' }}>{isMove ? '이동일' : '일시'}</span>
-                      <strong style={{ color: '#1e293b', fontWeight: 600 }}>{selectedHistory.created_at}</strong>
+                      <strong style={{ color: '#1e293b', fontWeight: 600 }}>
+                        {formatDisplayDate(selectedHistory.date || selectedHistory.created_at)}
+                      </strong>
                     </div>
                   </div>
 
