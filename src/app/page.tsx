@@ -344,7 +344,6 @@ export default function Home() {
                 setEditingProduct(null);
                 setCurrentPath('items');
               }}
-              onEditAttributes={() => setCurrentPath('attributes')}
             />
           ) : currentPath === 'stock-in' ? (
             <StockMovementForm

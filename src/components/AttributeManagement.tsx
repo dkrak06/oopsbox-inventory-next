@@ -22,7 +22,12 @@ import {
   AttributeMode,
 } from '@/lib/storage';
 
-export default function AttributeManagement() {
+interface AttributeManagementProps {
+  isModal?: boolean;
+  onClose?: () => void;
+}
+
+export default function AttributeManagement({ isModal, onClose }: AttributeManagementProps = {}) {
   // 1. 등록된 속성 목록 상태 (Soft Delete 되지 않은 속성만 표출)
   const [attributes, setAttributes] = useState<CustomAttribute[]>([]);
 
@@ -196,34 +201,58 @@ export default function AttributeManagement() {
   };
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: '960px', fontFamily: 'sans-serif' }}>
-      {/* 상단 서브 헤더 */}
-      <div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>
-        데이터 관리
-      </div>
+    <div style={{ padding: isModal ? '20px 24px' : '24px 32px', maxWidth: '960px', fontFamily: 'sans-serif' }}>
+      {/* 모달 모드 전용 상단 헤더 */}
+      {isModal ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+          <div>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>제품 속성 설정</h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+              속성을 추가, 수정하거나 순서를 변경하세요. 창을 닫으면 제품 등록 폼에 즉시 적용됩니다.
+            </p>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ background: 'none', border: 'none', fontSize: '22px', color: '#94a3b8', cursor: 'pointer', padding: '4px 8px' }}
+              title="닫기"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* 상단 서브 헤더 */}
+          <div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>
+            데이터 관리
+          </div>
 
-      {/* 페이지 타이틀 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>속성</h1>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '18px',
-            height: '18px',
-            borderRadius: '50%',
-            border: '1px solid #cbd5e1',
-            color: '#0d9488',
-            fontSize: '12px',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-          title="'고정' 속성은 제품 추가 시 항상 표출되고, '선택' 속성은 필요할 때 선택해 입력할 수 있습니다. 노출 여부를 꺼두시면 등록 폼에서 숨김 처리됩니다."
-        >
-          ?
-        </span>
-      </div>
+          {/* 페이지 타이틀 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '28px' }}>
+            <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>속성</h1>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                border: '1px solid #cbd5e1',
+                color: '#0d9488',
+                fontSize: '12px',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+              title="'고정' 속성은 제품 추가 시 항상 표출되고, '선택' 속성은 필요할 때 선택해 입력할 수 있습니다. 노출 여부를 꺼두시면 등록 폼에서 숨김 처리됩니다."
+            >
+              ?
+            </span>
+          </div>
+        </>
+      )}
 
       {/* 속성 관리 테이블 메인 영역 */}
       <div style={{ width: '100%' }}>
@@ -796,6 +825,29 @@ export default function AttributeManagement() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 모달 모드 하단 완료 및 닫기 버튼 */}
+      {isModal && onClose && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: '10px 24px',
+              backgroundColor: '#3b82f6',
+              color: '#ffffff',
+              borderRadius: '8px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(59, 130, 246, 0.2)',
+            }}
+          >
+            완료 및 닫기
+          </button>
         </div>
       )}
     </div>

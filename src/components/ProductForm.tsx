@@ -7,7 +7,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { saveItem, updateItem, getStoredAttributes, CustomAttribute, Item } from '@/lib/storage';
+import { saveItem, updateItem, getStoredAttributes, getStoredLocations, CustomAttribute, Item } from '@/lib/storage';
+import AttributeManagement from '@/components/AttributeManagement';
 
 // 위치별 재고 데이터 타입 정의
 interface LocationStock {
@@ -270,6 +271,9 @@ export default function ProductForm({
   // 선택 속성 추가 팝업/드롭다운 상태
   const [isAttrDropdownOpen, setIsAttrDropdownOpen] = useState<boolean>(false);
 
+  // 속성 편집 팝업 모달 상태 (페이지 이동 없이 팝업 창으로 띄움)
+  const [showAttributeModal, setShowAttributeModal] = useState<boolean>(false);
+
   // 위치별 수량 배열 상태
   const [locations, setLocations] = useState<LocationStock[]>(
     initialItem?.locations
@@ -281,17 +285,30 @@ export default function ProductForm({
       : []
   );
 
-  // 위치 검색 드롭다운 상태
+  // 위치 검색 드롭다운 상태 및 실제 저장소 위치 목록 상태
   const [isLocDropdownOpen, setIsLocDropdownOpen] = useState<boolean>(false);
   const [locSearchQuery, setLocSearchQuery] = useState<string>('');
-  const availableLocationPresets = ['기본 위치', 'DD', 'FFF', 'A창고', 'B창고'];
+  const [availableLocations, setAvailableLocations] = useState<string[]>([]);
 
-  // 컴포넌트 마운트 및 initialItem 변경 시 저장소에서 속성 로드 및 폼 데이터 갱신
-  useEffect(() => {
+  // 실제 저장된 창고 위치 목록 로드 함수
+  const loadLocations = () => {
+    const locs = getStoredLocations();
+    setAvailableLocations(locs);
+  };
+
+  // 저장소에서 최신 속성 목록 로드 함수
+  const loadAttributes = () => {
     const stored = getStoredAttributes();
     // Soft Delete(is_deleted) 및 노출 꺼짐(is_visible: false) 속성은 등록/수정 폼 노출 목록에서 제외합니다.
     const activeStored = stored.filter((attr) => !attr.is_deleted && attr.is_visible !== false);
     setAllAttributes(activeStored);
+    return activeStored;
+  };
+
+  // 컴포넌트 마운트 및 initialItem 변경 시 저장소에서 속성 로드 및 폼 데이터 갱신
+  useEffect(() => {
+    loadLocations();
+    const activeStored = loadAttributes();
 
     const attrVals: { [attrId: string]: string } = {};
 
@@ -303,6 +320,7 @@ export default function ProductForm({
       setSellingPrice(initialItem.selling_price ?? '');
 
       // 기존 속성 데이터 복원 (동일한 이름을 가진 속성도 ID 기반으로 각각 상이하게 매핑)
+      const stored = getStoredAttributes();
       stored.forEach((attr) => {
         let val = '';
         if (initialItem.attributes) {
@@ -340,6 +358,23 @@ export default function ProductForm({
     });
     setActiveFormAttrIds(initialActiveIds);
   }, [initialItem]);
+
+  // 속성 편집 모달 창 닫기 및 최신 속성 실시간 동기화 핸들러
+  const handleCloseAttributeModal = () => {
+    setShowAttributeModal(false);
+    const activeStored = loadAttributes();
+    // 고정 속성이 새로 추가되었을 경우 활성 속성 목록에 자동 추가
+    setActiveFormAttrIds((prev) => {
+      const nextIds = [...prev];
+      activeStored.forEach((attr) => {
+        if (attr.mode === '고정' && !nextIds.includes(attr.id)) {
+          nextIds.push(attr.id);
+        }
+      });
+      // 삭제된 속성은 폼에서 제거
+      return nextIds.filter((id) => activeStored.some((a) => a.id === id));
+    });
+  };
 
   // 동적 속성 값 변경 핸들러 (오직 고유한 attrId만을 Key로 다루어 중복 이름 동시 반응 버그 완벽 방지)
   const handleAttrValueChange = (attrId: string, val: string) => {
@@ -622,15 +657,13 @@ export default function ProductForm({
               <h2 className="section-title" style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>제품 속성</h2>
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', border: '1px solid #cbd5e1', color: '#0d9488', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>?</span>
             </div>
-            {onEditAttributes && (
-              <button
-                type="button"
-                onClick={onEditAttributes}
-                style={{ border: 'none', background: 'none', color: '#3b82f6', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                제품 속성 편집 <span style={{ fontSize: '10px' }}>&gt;</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setShowAttributeModal(true)}
+              style={{ border: 'none', background: 'none', color: '#3b82f6', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              제품 속성 편집 <span style={{ fontSize: '10px' }}>&gt;</span>
+            </button>
           </div>
 
           {/* 속성 목록 - 좌측 라벨 수평 옆 배치 */}
@@ -855,7 +888,10 @@ export default function ProductForm({
 
             <div style={{ marginTop: '6px', position: 'relative', maxWidth: '300px' }}>
               <div
-                onClick={() => setIsLocDropdownOpen((prev) => !prev)}
+                onClick={() => {
+                  setIsLocDropdownOpen((prev) => !prev);
+                  loadLocations();
+                }}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '8px', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', cursor: 'pointer', fontSize: '14px', color: '#64748b' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -879,7 +915,7 @@ export default function ProductForm({
                   </div>
 
                   <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '4px 0' }}>
-                    {availableLocationPresets
+                    {availableLocations
                       .filter((name) => name.toLowerCase().includes(locSearchQuery.toLowerCase()))
                       .map((presetName) => {
                         const isAdded = locations.some((loc) => loc.name === presetName);
@@ -894,6 +930,11 @@ export default function ProductForm({
                           </div>
                         );
                       })}
+                    {availableLocations.filter((name) => name.toLowerCase().includes(locSearchQuery.toLowerCase())).length === 0 && (
+                      <div style={{ padding: '14px 16px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>
+                        일치하는 위치가 없습니다.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -936,6 +977,46 @@ export default function ProductForm({
           </button>
         </footer>
       </form>
+
+      {/* 제품 속성 편집 모달 창 (페이지 이동 없이 창으로 띄움) */}
+      {showAttributeModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            backdropFilter: 'blur(3px)',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCloseAttributeModal();
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '960px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative',
+            }}
+          >
+            <AttributeManagement
+              isModal={true}
+              onClose={handleCloseAttributeModal}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -444,8 +444,9 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
   const handleReset = () => {
     if (confirm('입력한 내용을 모두 초기화하시겠습니까?')) {
       setSelectedList([]);
-      setWarehouse('기본창고');
-      setToWarehouse('A창고');
+      const locs = getStoredLocations();
+      setWarehouse(locs[0] || '기본 위치');
+      setToWarehouse(locs[1] || locs[0] || '기본 위치');
       setPartner('');
       setUseCurrentDate(true);
       setNotes('');
@@ -624,11 +625,11 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* 2. 메타데이터 입력 카드 */}
-        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        {/* 2. 메타데이터 입력 카드 (overflow: visible 및 z-index 40으로 드롭다운/달력이 바깥으로 시원하게 돌출되도록 보장) */}
+        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', position: 'relative', zIndex: 40, overflow: 'visible' }}>
           
-          {/* 위치 선택 (드롭다운 연동) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+          {/* 위치 선택 (드롭다운 연동, z-index: 30으로 하위 입력 행보다 앞쪽에 렌더링) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px', marginBottom: '12px', position: 'relative', zIndex: 30 }}>
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>위치 <span style={{ color: '#ff4d4f' }}>*</span></span>
             {type === 'MOVE' ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', maxWidth: '420px', width: '100%' }}>
@@ -687,7 +688,11 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
             ) : (
               <div className="location-select-wrapper" style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
                 <div
-                  onClick={() => setShowLocationDropdown(prev => !prev)}
+                  onClick={() => {
+                    setShowLocationDropdown(prev => !prev);
+                    setShowPartnerDropdown(false);
+                    setShowCalendar(false);
+                  }}
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -717,8 +722,8 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
                       backgroundColor: '#ffffff',
                       border: '1px solid #cbd5e1',
                       borderRadius: '8px',
-                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
-                      zIndex: 300,
+                      boxShadow: '0 12px 28px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0,0,0,0.08)',
+                      zIndex: 500,
                       overflow: 'hidden'
                     }}
                   >
@@ -748,13 +753,17 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
             )}
           </div>
 
-          {/* 거래처 선택 (스크린샷 2,3 거래처 추가 모달 연동) */}
+          {/* 거래처 선택 (스크린샷 2,3 거래처 추가 모달 연동, z-index: 20) */}
           {(type === 'IN' || type === 'OUT') && (
-            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px', marginBottom: '12px', position: 'relative', zIndex: 20 }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>거래처</span>
               <div className="partner-select-wrapper" style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
                 <div
-                  onClick={() => setShowPartnerDropdown(prev => !prev)}
+                  onClick={() => {
+                    setShowPartnerDropdown(prev => !prev);
+                    setShowLocationDropdown(false);
+                    setShowCalendar(false);
+                  }}
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -784,8 +793,8 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
                       backgroundColor: '#ffffff',
                       border: '1px solid #cbd5e1',
                       borderRadius: '8px',
-                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
-                      zIndex: 300,
+                      boxShadow: '0 12px 28px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0,0,0,0.08)',
+                      zIndex: 500,
                       overflow: 'hidden'
                     }}
                   >
@@ -847,13 +856,17 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
             </div>
           )}
 
-          {/* 날짜 선택 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px' }}>
+          {/* 날짜 선택 (z-index: 10) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 10 }}>
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>날짜</span>
             <div style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
               
               <div 
-                onClick={() => setShowCalendar(prev => !prev)}
+                onClick={() => {
+                  setShowCalendar(prev => !prev);
+                  setShowLocationDropdown(false);
+                  setShowPartnerDropdown(false);
+                }}
                 style={{ 
                   width: '100%', 
                   padding: '8px 12px', 
@@ -872,7 +885,7 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
                 <i className="fa-regular fa-calendar" style={{ color: '#64748b' }}></i>
               </div>
 
-              {/* 커스텀 달력 모달 레이어 (overscrollBehavior: 'contain' 속성 지정으로 바탕 화면 스크롤 완전 격리) */}
+              {/* 커스텀 달력 모달 레이어 (z-index: 500 및 깊이감 있는 그림자로 하단 테이블 위로 튀어나오게 렌더링) */}
               {showCalendar && (
                 <div 
                   ref={calendarContainerRef}
@@ -883,10 +896,10 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
                     backgroundColor: '#ffffff',
                     border: '1px solid #e2e8f0',
                     borderRadius: '12px',
-                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    boxShadow: '0 16px 36px rgba(0, 0, 0, 0.18), 0 6px 14px rgba(0, 0, 0, 0.08)',
                     width: '380px',
                     padding: '16px 20px',
-                    zIndex: 100,
+                    zIndex: 500,
                     overscrollBehavior: 'contain',
                   }}
                 >
@@ -1617,8 +1630,8 @@ export default function StockMovementForm({ type, onSuccess, initialItem, initia
           </div>
         </div>
 
-        {/* 3. 테이블형 제품 목록 카드 */}
-        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px', minWidth: '600px', overflowX: 'auto' }}>
+        {/* 3. 테이블형 제품 목록 카드 (상단 메타데이터 드롭다운/달력이 위에 오도록 z-index: 1 부여) */}
+        <div className="boxhero-style-form" style={{ padding: '20px', marginBottom: '20px', minWidth: '600px', overflowX: 'auto', position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'nowrap', gap: '12px' }}>
             <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', flexShrink: 0 }}>제품 목록</h2>
             <div style={{ display: 'flex', gap: '8px', flexShrink: 0, flexWrap: 'nowrap' }}>
