@@ -1,10 +1,7 @@
 /**
  * [HistoryView 컴포넌트]
- * 역할: 박스히어로(BoxHero) 스크린샷 2와 100% 동일한 이동(MOVE)/입출고/조정 전용 2열 마스터-디테일 히스토리 뷰입니다.
- * 흐름: 
- * 1. '이동' 유형 시 주황 테마(#f59e0b), '이동일' 라벨, 테이블 컬럼을 [사진 | 제품명 | 출발위치 | 도착위치 | 수량]으로 동적 표출
- * 2. 출발 위치(500 ➔ 450) 및 도착 위치(0 ➔ 50) 수량 변동을 스크린샷 2 그대로 100% 완벽 렌더링
- * 3. 입고(파랑), 출고(빨강), 조정(민트), 이동(주황) 4대 전용 디자인 테마 적용
+ * 역할: 입출고/조정/이동 내역을 2열 마스터-디테일로 보여주는 히스토리 뷰입니다.
+ * 흐름: 일시는 실제 처리 시각(현재시간)을 표시하고, 날짜 기능으로 별도 지정한 등록 날짜는 일시 하단에 명확히 표출합니다.
  */
 
 'use client';
@@ -745,10 +742,16 @@ export default function HistoryView() {
                         <strong style={{ fontSize: '15px', color: typeTheme.color, fontWeight: 800 }}>{typeTheme.label}</strong>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        {/* 사용자가 등록한 날짜(date) 최우선 표출, 없으면 생성일(created_at) */}
+                        {/* 일시: 현재 등록/수정 시간 그대로 표출 */}
                         <div style={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>
-                          {formatDisplayDate(h.date || h.created_at)}
+                          {formatDisplayDate(h.created_at)}
                         </div>
+                        {/* 날짜: 날짜 기능에서 입력한 날짜 표출 */}
+                        {h.date && (
+                          <div style={{ fontSize: '11px', color: '#0d9488', fontWeight: 600 }} title="등록 날짜">
+                            날짜: {formatDisplayDate(h.date)}
+                          </div>
+                        )}
                         <div style={{ fontSize: '11px', color: '#94a3b8' }}>{authorId}</div>
                       </div>
                     </div>
@@ -909,9 +912,18 @@ export default function HistoryView() {
                     <div style={{ display: 'flex', gap: '24px' }}>
                       <span style={{ width: '50px', color: '#64748b' }}>{isMove ? '이동일' : '일시'}</span>
                       <strong style={{ color: '#1e293b', fontWeight: 600 }}>
-                        {formatDisplayDate(selectedHistory.date || selectedHistory.created_at)}
+                        {formatDisplayDate(selectedHistory.created_at)}
                       </strong>
                     </div>
+                    {/* 일시 밑에 날짜 추가 (날짜 기능에서 입력한 날짜) */}
+                    {selectedHistory.date && (
+                      <div style={{ display: 'flex', gap: '24px' }}>
+                        <span style={{ width: '50px', color: '#64748b' }}>날짜</span>
+                        <strong style={{ color: '#0d9488', fontWeight: 600 }}>
+                          {formatDisplayDate(selectedHistory.date)}
+                        </strong>
+                      </div>
+                    )}
                   </div>
 
                   {/* 3. 스크린샷 2 100% 동일 이동 전용 테이블 [사진 | 제품명 | 기본 위치 | DD | 수량] */}

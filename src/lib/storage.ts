@@ -497,9 +497,10 @@ export const recordStockMovement = (
     saveLocationName(locationName);
 
     const now = new Date();
-    const defaultDateFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    // 사용자가 달력 기능으로 지정한 날짜가 있으면 우선 반영, 없으면 현재 시각 사용
-    const dateFormatted = (customDate && customDate !== '현재') ? customDate : defaultDateFormatted;
+    // 일시: 실제 저장된 현재 시각 (YYYY-MM-DD HH:mm)
+    const currentNowFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    // 날짜: 사용자가 날짜 기능(달력/시간 피커)에서 입력한 값 (없거나 '현재'이면 미설정)
+    const customDateFormatted = (customDate && customDate !== '현재') ? customDate : undefined;
 
     // 히스토리 생성 및 저장 (MOVE 타입은 출발/도착 위치를 담은 단일 레코드!)
     const historyData: StockHistory = {
@@ -516,8 +517,8 @@ export const recordStockMovement = (
       to_after_qty: toNewQty,
       location: locationName,
       to_location: toLocationName,
-      created_at: dateFormatted,
-      date: dateFormatted,
+      created_at: currentNowFormatted,
+      date: customDateFormatted,
       author: author || 'kipisa2095',
       notes: notes || '',
       category_brand: `${targetItem.category || '기본'} / ${targetItem.brand || '기본'}`,
