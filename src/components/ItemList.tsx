@@ -10,7 +10,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getStoredItems, deleteItem, updateItem, getStoredAttributes, CustomAttribute, Item } from '@/lib/storage';
+import { getStoredItems, resetSampleItems, deleteItem, updateItem, getStoredAttributes, CustomAttribute, Item } from '@/lib/storage';
 
 interface ItemListProps {
   onAddNew: () => void;
@@ -312,6 +312,20 @@ export default function ItemList({ onAddNew, onEditProduct, onNavigate, onSelect
 
           <button
             type="button"
+            className="btn search-item-hover"
+            style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', color: '#0284c7', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, cursor: 'pointer', borderRadius: '6px' }}
+            onClick={() => {
+              const sampleItems = resetSampleItems();
+              setItems(sampleItems);
+              alert('샘플 제품 8개가 성공적으로 로드되었습니다!');
+            }}
+            title="테스트용 임의 제품 8종을 즉시 채웁니다."
+          >
+            <i className="fa-solid fa-wand-magic-sparkles"></i> 샘플 데이터 로드
+          </button>
+
+          <button
+            type="button"
             className="btn"
             style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, cursor: 'pointer', borderRadius: '6px' }}
             onClick={() => onNavigate ? onNavigate('partners') : alert('데이터 관리 화면으로 이동합니다.')}
@@ -470,8 +484,27 @@ export default function ItemList({ onAddNew, onEditProduct, onNavigate, onSelect
           {/* 제품 카드 가로 리스트 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {filteredItems.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: '13px' }}>
-                등록된 제품이 없습니다.
+              <div style={{ textAlign: 'center', padding: '36px 16px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                <div style={{ color: '#64748b', fontSize: '14px', fontWeight: 600, marginBottom: '10px' }}>등록된 제품이 없습니다.</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sampleItems = resetSampleItems();
+                    setItems(sampleItems);
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#3b82f6',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <i className="fa-solid fa-wand-magic-sparkles"></i> 샘플 제품 데이터 불러오기
+                </button>
               </div>
             ) : (
               filteredItems.map((item) => {

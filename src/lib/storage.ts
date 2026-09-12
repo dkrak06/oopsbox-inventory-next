@@ -196,13 +196,162 @@ export const getLocationTotalStock = (locationName: string): number => {
   }, 0);
 };
 
+// 기본 고품질 임의 샘플 제품 목록 정의 (카테고리, 바코드, 거래처, 위치별 재고 완벽 바인딩)
+export const INITIAL_ITEMS: Item[] = [
+  {
+    id: 'ITEM-1001',
+    sku: 'ACC-KEY-001',
+    name: '무선 블루투스 키보드 K100',
+    barcode: '8801234567011',
+    category: '전자기기',
+    brand: '로지테크',
+    purchase_price: 35000,
+    selling_price: 59000,
+    locations: { '기본 위치': 45, 'DD': 20, '123': 15 },
+    total_quantity: 80,
+    partner: '(주)한국전자',
+    history_count: 3,
+    created_at: new Date(Date.now() - 7 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+    attributes: { '카테고리': '전자기기', '브랜드': '로지테크' },
+  },
+  {
+    id: 'ITEM-1002',
+    sku: 'ACC-CBL-002',
+    name: 'C타입 고속충전 케이블 1.5m',
+    barcode: '8801234567028',
+    category: '전자기기',
+    brand: '벨킨',
+    purchase_price: 4500,
+    selling_price: 12000,
+    locations: { '기본 위치': 150, 'FFF': 80, '123': 70 },
+    total_quantity: 300,
+    partner: '(주)한국전자',
+    history_count: 5,
+    created_at: new Date(Date.now() - 6 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+    attributes: { '카테고리': '전자기기', '브랜드': '벨킨' },
+  },
+  {
+    id: 'ITEM-1003',
+    sku: 'OFF-PAD-003',
+    name: '고급 천연 소가죽 마우스패드',
+    barcode: '8801234567035',
+    category: '사무용품',
+    brand: '데스크랩',
+    purchase_price: 12000,
+    selling_price: 24000,
+    locations: { '기본 위치': 60, 'DD': 40 },
+    total_quantity: 100,
+    partner: '(주)오피스웨어',
+    history_count: 2,
+    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+    attributes: { '카테고리': '사무용품', '브랜드': '데스크랩' },
+  },
+  {
+    id: 'ITEM-1004',
+    sku: 'ACC-MOU-004',
+    name: '친환경 무선 버티컬 마우스 VM20',
+    barcode: '8801234567042',
+    category: '전자기기',
+    brand: '로지테크',
+    purchase_price: 28000,
+    selling_price: 45000,
+    locations: { '기본 위치': 35, '123': 25 },
+    total_quantity: 60,
+    partner: '(주)한국전자',
+    history_count: 4,
+    created_at: new Date(Date.now() - 4 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+    attributes: { '카테고리': '전자기기', '브랜드': '로지테크' },
+  },
+  {
+    id: 'ITEM-1005',
+    sku: 'DSP-MON-005',
+    name: '27인치 4K UHD 모니터 M27',
+    barcode: '8801234567059',
+    category: '전자기기',
+    brand: '삼성전자',
+    purchase_price: 290000,
+    selling_price: 390000,
+    locations: { '기본 위치': 12, 'DD': 8, '123': 5 },
+    total_quantity: 25,
+    partner: '미래로지스',
+    history_count: 1,
+    created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+    attributes: { '카테고리': '전자기기', '브랜드': '삼성전자' },
+  },
+  {
+    id: 'ITEM-1006',
+    sku: 'OFF-STN-006',
+    name: '알루미늄 듀얼 노트북 거치대',
+    barcode: '8801234567066',
+    category: '사무용품',
+    brand: '애니클리어',
+    purchase_price: 18000,
+    selling_price: 32000,
+    locations: { '기본 위치': 50, 'FFF': 30 },
+    total_quantity: 80,
+    partner: '(주)오피스웨어',
+    history_count: 2,
+    created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+    attributes: { '카테고리': '사무용품', '브랜드': '애니클리어' },
+  },
+  {
+    id: 'ITEM-1007',
+    sku: 'PAP-A4-007',
+    name: 'A4 복사용지 80g (1박스/2500매)',
+    barcode: '8801234567073',
+    category: '소모품',
+    brand: '더블에이',
+    purchase_price: 22000,
+    selling_price: 31000,
+    locations: { '기본 위치': 100, '123': 50, 'DD': 50 },
+    total_quantity: 200,
+    partner: '(주)오피스웨어',
+    history_count: 6,
+    created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+    attributes: { '카테고리': '소모품', '브랜드': '더블에이' },
+  },
+  {
+    id: 'ITEM-1008',
+    sku: 'AUD-HED-008',
+    name: '노이즈 캔슬링 무선 헤드셋 H500',
+    barcode: '8801234567080',
+    category: '음향기기',
+    brand: '소니',
+    purchase_price: 180000,
+    selling_price: 289000,
+    locations: { '기본 위치': 20, 'FFF': 15, '123': 10 },
+    total_quantity: 45,
+    partner: '글로벌파트너스',
+    history_count: 2,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    attributes: { '카테고리': '음향기기', '브랜드': '소니' },
+  },
+];
+
 // 1. 전체 제품 목록 불러오기 함수
 export const getStoredItems = (): Item[] => {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') return INITIAL_ITEMS;
   try {
     const data = localStorage.getItem(ITEMS_KEY);
-    if (!data) return [];
+    if (!data) {
+      // 로컬 스토리지에 데이터가 없으면 임의의 샘플 제품 목록으로 자동 세팅
+      localStorage.setItem(ITEMS_KEY, JSON.stringify(INITIAL_ITEMS));
+      return INITIAL_ITEMS;
+    }
     const items: Item[] = JSON.parse(data);
+    if (items.length === 0) {
+      // 저장된 배열이 비어있을 경우에도 샘플 제품 목록을 자동 채움
+      localStorage.setItem(ITEMS_KEY, JSON.stringify(INITIAL_ITEMS));
+      return INITIAL_ITEMS;
+    }
 
     // 기존 데이터 자동 마이그레이션: 과거 더미 데이터로 저장된 '(주)영웅유통'을 빈 값('')으로 보정
     let hasChanged = false;
@@ -221,8 +370,16 @@ export const getStoredItems = (): Item[] => {
     return cleanedItems;
   } catch (error) {
     console.error('제품 데이터 로드 실패:', error);
-    return [];
+    return INITIAL_ITEMS;
   }
+};
+
+// 임의의 샘플 제품 데이터 일괄 재적재 함수
+export const resetSampleItems = (): Item[] => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(ITEMS_KEY, JSON.stringify(INITIAL_ITEMS));
+  }
+  return INITIAL_ITEMS;
 };
 
 // 2. 새 제품 저장하기 함수 (로컬 즉시 반영 + Supabase 클라우드 동기화)
