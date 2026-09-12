@@ -4,18 +4,22 @@
  */
 import type { NextConfig } from "next";
 
-// GitHub Pages(Actions) 환경인지 확인 (Vercel 배포 시에는 루트 경로 사용)
+// GitHub Pages(Actions) 환경인지 확인
 const isGithubPages = process.env.GITHUB_ACTIONS === "true";
 // GitHub 저장소 이름
 const repoName = "oopsbox-inventory-next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // 1. 정적 내보내기 활성화
-  output: "export",
-  // 2. Vercel은 루트(/)로 배포되고, GitHub Pages일 때만 서브 경로(/oopsbox-inventory-next) 적용
-  basePath: isGithubPages ? `/${repoName}` : "",
-  assetPrefix: isGithubPages ? `/${repoName}/` : "",
+  // 1. GitHub Pages 배포 시에만 정적 내보내기(export) 및 서브경로 적용
+  // 2. Vercel 배포 시에는 Vercel 네이티브 Next.js 런타임으로 동작하여 404 없이 루트 완벽 서빙
+  ...(isGithubPages
+    ? {
+        output: "export",
+        basePath: `/${repoName}`,
+        assetPrefix: `/${repoName}/`,
+      }
+    : {}),
   // 3. 이미지 최적화 unoptimized 처리
   images: {
     unoptimized: true,
