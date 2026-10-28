@@ -4,7 +4,7 @@
  * 흐름: 실제 클라우드 DB를 최우선으로 읽고 쓰며, 오프라인 상황이나 연결 지연 시 로컬 스토리지를 캐시로 활용하여 중단 없는 서비스를 제공합니다.
  */
 
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 import { Item, StockHistory, LocationItem, PartnerItem } from './storage';
 import {
   getStoredItems,
@@ -25,6 +25,10 @@ const DEFAULT_TEAM_ID = 1;
  * 클라우드 DB 연결 실패 시 로컬스토리지 데이터를 대체 반환합니다.
  */
 export async function fetchItemsFromDB(): Promise<Item[]> {
+  // 환경변수가 없거나 유효하지 않으면 로컬 스토리지 캐시를 즉시 반환
+  if (!isSupabaseConfigured) {
+    return getStoredItems();
+  }
   try {
     // Supabase 'items' 테이블에서 삭제되지 않은(is_deleted = 0) 품목 최신순 조회
     const { data, error } = await supabase
@@ -74,6 +78,7 @@ export async function fetchItemsFromDB(): Promise<Item[]> {
  * 신규 제품을 Supabase에 등록합니다.
  */
 export async function insertItemToDB(item: Item): Promise<Item> {
+  if (!isSupabaseConfigured) return item;
   try {
     const { error } = await supabase.from('items').upsert([
       {
@@ -112,6 +117,7 @@ export async function insertItemToDB(item: Item): Promise<Item> {
  * 제품 정보를 수정(재고 수량, 단가, 속성 등)합니다.
  */
 export async function updateItemInDB(itemId: string, fields: Partial<Item>): Promise<void> {
+  if (!isSupabaseConfigured) return;
   try {
     const updatePayload: any = {
       ...fields,
@@ -143,6 +149,7 @@ export async function updateItemInDB(itemId: string, fields: Partial<Item>): Pro
  * 제품을 Supabase에서 소프트 삭제(is_deleted = 1)합니다.
  */
 export async function deleteItemFromDB(itemId: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
   try {
     const { error } = await supabase
       .from('items')
@@ -166,6 +173,7 @@ export async function deleteItemFromDB(itemId: string): Promise<void> {
  * Supabase에서 재고 변동 히스토리를 최신순으로 조회합니다.
  */
 export async function fetchHistoriesFromDB(): Promise<StockHistory[]> {
+  if (!isSupabaseConfigured) return getStoredHistories();
   try {
     const { data, error } = await supabase
       .from('stock_history')
@@ -213,6 +221,7 @@ export async function fetchHistoriesFromDB(): Promise<StockHistory[]> {
  * 입출고/조정/이동 등의 히스토리 레코드를 Supabase에 저장합니다.
  */
 export async function insertHistoryToDB(history: StockHistory): Promise<void> {
+  if (!isSupabaseConfigured) return;
   try {
     const { error } = await supabase.from('stock_history').insert([
       {
@@ -254,6 +263,7 @@ export async function insertHistoryToDB(history: StockHistory): Promise<void> {
 // ==========================================
 
 export async function fetchLocationsFromDB(): Promise<LocationItem[]> {
+  if (!isSupabaseConfigured) return getStoredLocationObjects();
   try {
     const { data, error } = await supabase
       .from('locations')
@@ -285,6 +295,7 @@ export async function fetchLocationsFromDB(): Promise<LocationItem[]> {
 }
 
 export async function insertLocationToDB(loc: LocationItem): Promise<void> {
+  if (!isSupabaseConfigured) return;
   try {
     await supabase.from('locations').upsert([
       {
@@ -306,6 +317,7 @@ export async function insertLocationToDB(loc: LocationItem): Promise<void> {
 // ==========================================
 
 export async function fetchPartnersFromDB(): Promise<PartnerItem[]> {
+  if (!isSupabaseConfigured) return getStoredPartnerObjects();
   try {
     const { data, error } = await supabase
       .from('partners')
@@ -342,6 +354,7 @@ export async function fetchPartnersFromDB(): Promise<PartnerItem[]> {
 }
 
 export async function insertPartnerToDB(partner: PartnerItem): Promise<void> {
+  if (!isSupabaseConfigured) return;
   try {
     await supabase.from('partners').upsert([
       {
